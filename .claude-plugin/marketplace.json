@@ -1,0 +1,19 @@
+{
+  "name": "real-life-tools",
+  "owner": {
+    "name": "Real Life Org",
+    "email": "info@real-life.org"
+  },
+  "metadata": {
+    "description": "Claude Code Skills für das Real Life Team",
+    "version": "1.0.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": [
+    {
+      "name": "rfc-tools",
+      "source": "./plugins/rfc-tools",
+      "description": "Skills für den RFC-Prozess: erstellen, Status prüfen, reviewen"
+    }
+  ]
+}
