@@ -1,0 +1,5 @@
+{
+  "name": "deploy-tools",
+  "description": "Deploy-Skills für die Real Life Infrastructure (NixOS + Traefik + Watchtower)",
+  "version": "1.0.0"
+}
