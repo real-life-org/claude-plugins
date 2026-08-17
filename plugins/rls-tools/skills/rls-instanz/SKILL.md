@@ -76,24 +76,38 @@ Dann alles von genau diesem Tag holen (Beispiel: `app-v0.2.4`, Instanz nach `/ho
 
 ```bash
 ZIEL=/home/x/code/unser-netzwerk
-TMP=$(mktemp -d)
-BASE=https://raw.githubusercontent.com/real-life-org/real-life-stack/app-v0.2.4/deploy/app
+[ -e "$ZIEL" ] && { echo "FEHLER: $ZIEL existiert schon."; exit 1; }
 
-mkdir -p "$TMP/landing" "$TMP/branding" && cd "$TMP" \
-  && curl -fsSLO "$BASE/docker-compose.yml" \
-  && curl -fsSLO "$BASE/docker-compose.preview.yml" \
-  && curl -fsSL "$BASE/.env.example" -o .env.example \
-  && curl -fsSL "$BASE/branding/theme.json" -o branding/theme.json \
-  && curl -fsSL "$BASE/landing-default/index.html" -o landing/index.html \
-  && cp .env.example .env \
-  && printf '\nRLS_IMAGE_TAG=0.2.4\n' >> .env \
-  && mkdir -p "$ZIEL" \
-  && cp -r "$TMP/." "$ZIEL/" \
-  && echo "Instanz angelegt aus app-v0.2.4"
-rm -rf "$TMP"
+# Das Zwischenverzeichnis liegt NEBEN dem Ziel — auf demselben Dateisystem.
+# Nur dann ist das abschliessende mv ein einziger, unteilbarer rename.
+TMP=$(mktemp -d "$(dirname "$ZIEL")/.rls-bootstrap-XXXXXX") || exit 1
+trap 'rm -rf "$TMP"' EXIT      # raeumt auch bei Abbruch auf
+set -e                          # jeder Fehler beendet hier, nichts laeuft weiter
+
+BASE=https://raw.githubusercontent.com/real-life-org/real-life-stack/app-v0.2.4/deploy/app
+mkdir -p "$TMP/landing" "$TMP/branding"
+cd "$TMP"
+curl -fsSLO "$BASE/docker-compose.yml"
+curl -fsSLO "$BASE/docker-compose.preview.yml"
+curl -fsSL "$BASE/.env.example" -o .env.example
+curl -fsSL "$BASE/branding/theme.json" -o branding/theme.json
+curl -fsSL "$BASE/landing-default/index.html" -o landing/index.html
+cp .env.example .env
+printf '\nRLS_IMAGE_TAG=0.2.4\n' >> .env
+
+cd /                            # nicht im Verzeichnis stehen, das gleich wandert
+mv "$TMP" "$ZIEL"               # ein rename: entweder ganz da oder gar nicht
+trap - EXIT                     # nichts mehr aufzuraeumen
+echo "Instanz angelegt aus app-v0.2.4"
 ```
 
-Die `&&`-Kette ist der Punkt: Bricht irgendetwas ab, bleibt das Zielverzeichnis unangetastet, und der nächste Versuch fängt sauber an. `$TMP` wird in jedem Fall aufgeräumt.
+Drei Dinge tragen hier, und alle drei sind nötig:
+
+- **`set -e`** beendet beim ersten Fehler. Eine `&&`-Kette mit anschließendem `rm` reicht nicht: Der Rückgabewert wäre dann der des Aufräumens, und ein abgebrochener Download meldete Erfolg.
+- **`trap … EXIT`** räumt auf, egal wie der Block endet — auch bei Abbruch durch den Nutzer.
+- **`mv` statt `cp -r`**: Ein `cp` kann mittendrin scheitern und einen Teilzustand hinterlassen. `mv` innerhalb desselben Dateisystems ist ein einziger `rename` — entweder das Verzeichnis ist vollständig da oder gar nicht. Dafür liegt `$TMP` neben dem Ziel und nicht in `/tmp`, das oft ein anderes Dateisystem ist.
+
+**Prüf danach, dass der Befehl mit Status 0 geendet hat**, bevor du weitermachst. Ist das Zielverzeichnis nicht entstanden, ist nichts angelegt worden — das ist der gewollte Zustand, kein halber.
 
 Die **Version steht damit auch in der `.env`** — dieselbe, aus der die Vorlagen kommen. Gibt es noch gar kein Release, gibt es auch kein Image; dann ist die Instanz noch nicht dran, und du sagst das, statt etwas zusammenzustückeln.
 
