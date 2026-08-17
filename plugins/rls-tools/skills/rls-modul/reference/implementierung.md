@@ -31,12 +31,36 @@ Aufbau exakt wie bei einem bestehenden Vokabular; `event/v1` ist die beste Vorla
 - **Storybook-Story pro Komponente**, Titel nach `docs/spec/code-and-storybook-mapping.md`
 - Vitest-Tests für die Logik-Helfer
 
-## d) `apps/reference` — nur Komposition
+## d) Ein neues Modul anmeldbar machen
 
-- `src/views/<modul>-view.tsx`
-- Dispatch in `src/views/module-outlet.tsx` (inkl. Füllmodus: full-bleed oder zentrierter Container)
-- `VALID_MODULES` + Modul-Label in `src/hooks/use-workspace-routing.ts`
-- app-spezifische Register-Ergänzungen in `src/type-register.tsx`
+**Die häufigste Falle.** Ein Modul existiert nicht an einer Stelle, sondern an mehreren — und wer eine vergisst, bekommt ein Modul, das *fast* funktioniert. Der typische Fehlschlag: Es erscheint unter „Mein Netzwerk", aber in keinem einzelnen Space, und im Space-Dialog lässt es sich nicht einschalten.
+
+Der Grund: Für die Übersicht gelten **alle** Module, für einen Space nur die in `Group.data.modules`. Und was dort hinein *kann*, entscheidet eine Liste im **Toolkit** — nicht die in der App.
+
+Leite die Stellen ab, statt dieser Aufzählung zu vertrauen (`inventur.sh` gibt sie aus, Abschnitt „Modul-Listen"):
+
+| Ort | Was passiert ohne den Eintrag |
+|---|---|
+| `packages/toolkit/src/components/layout/group-dialog.tsx` → `AVAILABLE_MODULES` | **Das Modul lässt sich in keinem Space aktivieren** — es fehlt im Space-Dialog, und `knownModules()` filtert es aus einer bestehenden Liste heraus |
+| `apps/reference/src/hooks/use-workspace-routing.ts` → `VALID_MODULES` | Die URL `/{space}/{modul}` wird als Item-Id gelesen, das Modul ist nicht erreichbar |
+| dieselbe Datei → `MODULE_LABELS` | Der Tab trägt keinen Namen |
+| `apps/reference/src/views/module-outlet.tsx` | Der Tab ist da, die Fläche bleibt leer |
+| `apps/reference/src/notification-navigation.ts` | Benachrichtigungen zu Items dieses Moduls landen im falschen Tab |
+| `apps/reference/src/views/<modul>-view.tsx` | — die View selbst |
+| `src/type-register.tsx` | app-spezifische Typ-Ergänzungen, falls das Modul einen eigenen Typ mitbringt |
+
+**Prüfe die Anmeldung, bevor du das Modul für fertig hältst:**
+
+```bash
+# Kommt der Modulname in allen Listen vor? Beispiel: mein-modul
+grep -rn "mein-modul" /pfad/aus/dem/manifest/packages/toolkit/src/components/layout/group-dialog.tsx   /pfad/aus/dem/manifest/apps/reference/src/hooks/use-workspace-routing.ts   /pfad/aus/dem/manifest/apps/reference/src/views/module-outlet.tsx   /pfad/aus/dem/manifest/apps/reference/src/notification-navigation.ts
+```
+
+Fehlt eine Zeile, fehlt der Eintrag. Das ist billiger als der Test danach — und der Test danach ist trotzdem Pflicht (Phase 7: „Modul in einem **einzelnen Space** öffnen", nicht nur in der Übersicht).
+
+Dass dieselbe Frage an fünf Stellen beantwortet wird, ist eine bekannte Schwäche. Wenn dir beim Eintragen auffällt, dass die Listen bereits auseinanderlaufen, **melde es** — repariere nicht still die eine, die dir gerade im Weg ist.
+
+## e) `apps/reference` — nur Komposition
 
 Hier gehört **keine** wiederverwendbare Logik hin. Wenn etwas in einer zweiten App nützlich wäre, gehört es ins Toolkit.
 

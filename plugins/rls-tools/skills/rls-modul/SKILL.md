@@ -300,7 +300,12 @@ Läuft schon ein Dev-Server (`ss -ltnp | grep -E '517[0-9]|6006'`), stör den fr
 
 Wenn der Nutzer fertig ist, den Server mit `kill` und der PID aus dem Manifest beenden, beide Felder entfernen und die Logdatei aufräumen — spätestens bevor du in Phase 8 gehst.
 
-Sag konkret, **was der Nutzer anklicken soll** und **was er sehen müsste**: Modul öffnen, Item anlegen, Item bearbeiten, Filter, Detail-Panel, leerer Zustand, Space ohne das Modul, unbekannter Item-Typ. Feedback einarbeiten und erneut vorlegen. Die Schleife läuft, bis **der Nutzer** zufrieden ist — nicht bis du es bist.
+Sag konkret, **was der Nutzer anklicken soll** und **was er sehen müsste**. Diese Liste ist Pflicht, und der erste Punkt ist der, an dem Module am häufigsten scheitern:
+
+1. **Das Modul in einem einzelnen Space öffnen** — nicht nur unter „Mein Netzwerk". Die Übersicht zeigt alle Module; ein Space zeigt nur seine eigenen. Ist das Modul dort nicht da, fehlt ein Eintrag aus `reference/implementierung.md`, Abschnitt d.
+2. **Das Modul im Space-Dialog ein- und ausschalten** — steht es dort nicht in der Auswahl, fehlt es in `AVAILABLE_MODULES` im Toolkit.
+3. Item anlegen, bearbeiten, Filter, Detail-Panel
+4. Leerer Zustand, ein Space **ohne** das Modul, ein unbekannter Item-Typ Feedback einarbeiten und erneut vorlegen. Die Schleife läuft, bis **der Nutzer** zufrieden ist — nicht bis du es bist.
 
 Sagt er, dass es passt: `phase: getestet` ins Manifest. Das ist die Zufriedenheit mit dem Ergebnis — **nicht** die Freigabe zum Veröffentlichen, die kommt in Phase 8 getrennt.
 

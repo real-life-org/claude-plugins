@@ -189,8 +189,22 @@ sed -n '/^interface ItemFilter/,/^}/p' docs/spec/02-data-interface.md 2>/dev/nul
 h "Bestehende Modul-Specs"
 ls docs/spec/modules/ 2>/dev/null | tr '\n' ' '; echo
 
-h "Module in der Reference-App"
-grep -n 'VALID_MODULES' apps/reference/src/hooks/use-workspace-routing.ts 2>/dev/null | sed 's/^/  /'
+h "Modul-Listen — ALLE Stellen, an denen ein Modul angemeldet sein muss"
+# Ein Modul, das nur in einer davon steht, funktioniert nur halb: fehlt es in
+# AVAILABLE_MODULES, laesst es sich in KEINEM Space aktivieren und erscheint
+# nur in der Uebersicht.
+printf '  -- Toolkit, Space-Dialog (entscheidet ueber Aktivierbarkeit) --\n'
+sed -n '/^const AVAILABLE_MODULES/,/as const/p' packages/toolkit/src/components/layout/group-dialog.tsx 2>/dev/null | sed 's/^/    /'
+printf '  -- App, Routing --\n'
+grep -n 'VALID_MODULES = ' apps/reference/src/hooks/use-workspace-routing.ts 2>/dev/null | sed 's/^/    /'
+printf '  -- App, Labels --\n'
+sed -n '/^const MODULE_LABELS/,/^}/p' apps/reference/src/hooks/use-workspace-routing.ts 2>/dev/null | sed 's/^/    /'
+printf '  -- App, Dispatch --\n'
+grep -c 'activeModule ===' apps/reference/src/views/module-outlet.tsx 2>/dev/null | sed 's/^/    Zweige: /'
+printf '  -- App, Notification-Fallback --\n'
+grep -n 'group.data.modules as string\[\]' apps/reference/src/notification-navigation.ts 2>/dev/null | sed 's/^/    /'
+
+h "Views in der Reference-App"
 ls apps/reference/src/views/ 2>/dev/null | grep -v test | tr '\n' ' '; echo
 
 h "Linsen (read-only Darstellungen)"
