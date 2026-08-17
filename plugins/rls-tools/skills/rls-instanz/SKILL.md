@@ -93,7 +93,14 @@ curl -fsSL "$BASE/.env.example" -o .env.example
 curl -fsSL "$BASE/branding/theme.json" -o branding/theme.json
 curl -fsSL "$BASE/landing-default/index.html" -o landing/index.html
 cp .env.example .env
-printf '\nRLS_IMAGE_TAG=0.2.4\n' >> .env
+# Dieselbe Version in BEIDE Dateien: .env gilt fuer diese Instanz,
+# .env.example wird committet und ist die Vorgabe fuer jeden spaeteren Klon.
+# Stuenden dort verschiedene Versionen, zoege der naechste Klon ein anderes
+# Image als die Vorlagen, die daneben liegen.
+sed -i.bak 's|^RLS_IMAGE_TAG=.*|RLS_IMAGE_TAG=0.2.4|' .env .env.example
+rm -f .env.bak .env.example.bak
+grep -qxF 'RLS_IMAGE_TAG=0.2.4' .env
+grep -qxF 'RLS_IMAGE_TAG=0.2.4' .env.example
 
 cd /                            # nicht im Verzeichnis stehen, das gleich wandert
 mv "$TMP" "$ZIEL"               # ein rename: entweder ganz da oder gar nicht
@@ -217,10 +224,18 @@ Kommt nichts zurück oder ein **anderer** Pfad als das Instanz-Verzeichnis, gibt
 
 ```bash
 git -C /home/x/code/unser-netzwerk init
-printf '.env\n' >> /home/x/code/unser-netzwerk/.gitignore
 ```
 
 Ein bestehendes Repository weiter oben im Baum ist ein Grund zum Nachfragen, nicht zum Weitermachen: Die Instanz gehört dann vermutlich woandershin.
+
+**Die `.gitignore` gehört in jedem Fall geprüft, nicht nur bei einem neuen Repo.** Ein bestehendes Repository hat womöglich keine — oder eine ohne `.env`-Eintrag. Ohne ihn landet beim ersten `git add` die Datei im Commit, in der morgen ein Schlüssel steht:
+
+```bash
+IGN=/home/x/code/unser-netzwerk/.gitignore
+grep -qxF '.env' "$IGN" 2>/dev/null || printf '.env\n' >> "$IGN"
+```
+
+`grep -qxF` prüft auf die **ganze Zeile**: Ein vorhandenes `.env.example` oder `notes.env` darf nicht als Treffer durchgehen. Fehlt die Datei ganz, legt `>>` sie an.
 
 **Dann schau, was schon im Index liegt.** Ein `git commit` nimmt alles Vorgestagte mit — auch was jemand vor dieser Sitzung dort abgelegt hat und was der Nutzer gerade gar nicht freigegeben hat:
 
