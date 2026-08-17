@@ -52,6 +52,8 @@ upstreamRemote: upstream        # Remote, der auf real-life-org zeigt (Basis + P
 pushPlan: fork                  # direkt | fork — aus viewerPermission, Phase 4
 pushRemote:                     # leer bis Phase 8; bei pushPlan=direkt = upstreamRemote
 prHead:                         # leer bis Phase 8; bei Fork mit owner:-Praefix
+devServerPid:                   # nur waehrend Phase 7 gesetzt, danach beendet + entfernt
+devServerLog:                   # Pfad der Logdatei, gleiche Lebensdauer
 phase: spec-freigegeben
 scope: Beete anlegen, Pflanzungen eintragen, Gießplan sehen
 nonGoals: keine Ertragsstatistik, keine Erinnerungen, kein Wetterdienst
@@ -87,8 +89,9 @@ Findest du ein Manifest zum Thema des Nutzers, steig dort ein statt von vorn anz
 2. Steht dort noch `branch:`? (`git -C /worktree branch --show-current`) Weicht es ab, hat jemand von Hand eingegriffen: **fragen**, nicht korrigieren.
 3. Ist `phase:` einer der Werte oben? Fehlt er oder ist er unbekannt, ist das Manifest kaputt — nicht raten, sondern den Stand mit dem Nutzer klären.
 4. Passt die Phase zum tatsächlichen Zustand? Steht `implementiert`, liegen aber keine Änderungen im Worktree (`git -C /worktree status --short`), stimmt etwas nicht — ansprechen.
+5. Steht ein `devServerPid` drin, läuft der Prozess noch (`kill -0` mit der PID)? Wenn nicht, ist es eine Leiche aus einer früheren Sitzung: Feld entfernen. Wenn doch, den laufenden Server benutzen statt einen zweiten zu starten.
 
-Erst wenn alle vier stimmen, arbeite bei „nächster Schritt" der Tabelle weiter. **Ein Tor gilt nur als durchschritten, wenn das Manifest es sagt** — nicht, weil es im Gespräch mal vorkam. Bereits erteilte Freigaben werden nicht erneut eingeholt, aber auch nicht angenommen.
+Erst wenn alle fünf stimmen, arbeite bei „nächster Schritt" der Tabelle weiter. **Ein Tor gilt nur als durchschritten, wenn das Manifest es sagt** — nicht, weil es im Gespräch mal vorkam. Bereits erteilte Freigaben werden nicht erneut eingeholt, aber auch nicht angenommen.
 
 ## Phase 0 — Repo finden und Inventur ableiten
 
@@ -213,14 +216,17 @@ Und: **eine Remote-URL sagt nichts über Schreibrechte.** Dass `origin` auf `rea
 gh repo view real-life-org/real-life-stack --json viewerPermission --jq .viewerPermission
 ```
 
-`ADMIN`, `MAINTAIN` oder `WRITE` heißt: direkt auf einen Branch im Zielrepo. Alles andere (`READ`, `TRIAGE`, leer) heißt: es wird ein **Fork** gebraucht. Das jetzt zu wissen ist wichtig, weil der Push sonst erst ganz am Ende scheitert — nach der gesamten Arbeit.
+`ADMIN`, `MAINTAIN` oder `WRITE` heißt: direkt auf einen Branch im Zielrepo. `READ` oder `TRIAGE` heißt: es wird ein **Fork** gebraucht. Das jetzt zu wissen ist wichtig, weil der Push sonst erst ganz am Ende scheitert — nach der gesamten Arbeit.
+
+**Schlägt der Aufruf fehl oder kommt leer zurück, ist das kein `fork`.** Ein `gh`-Fehler (nicht angemeldet, kein Netz, API-Störung) sagt nichts über die Rechte des Nutzers; daraus einen Fork abzuleiten, würde einem Maintainer ungefragt ein Repo anlegen. Nenn das Ergebnis, frag nach — „darfst du direkt in `real-life-org/real-life-stack` pushen, oder arbeitest du über einen Fork?" — und trag die Antwort ein. Bei `gh: command not found` oder fehlender Anmeldung gilt dasselbe.
 
 **Den Fork jetzt aber nicht anlegen.** Ein Fork ist ein öffentlich sichtbares Repo unter dem Namen des Nutzers; ihn hier zu erzeugen wäre eine Außenwirkung vor dem Veröffentlichungstor. Es wird nur **festgehalten**, was in Phase 8 zu tun ist:
 
 | `viewerPermission` | `pushPlan` im Manifest | Basis für den Branch | In Phase 8 |
 |---|---|---|---|
 | `ADMIN` / `MAINTAIN` / `WRITE` | `direkt` | `<upstream>/master` | Push nach `<upstream>`, `--head modul/garden-planner` |
-| alles andere | `fork` | `<upstream>/master` | Fork anlegen, Remote setzen, Push dorthin, `--head owner:modul/garden-planner` |
+| `READ` / `TRIAGE` | `fork` | `<upstream>/master` | Fork anlegen, Remote setzen, Push dorthin, `--head owner:modul/garden-planner` |
+| Abfrage schlägt fehl oder ist leer | **erst fragen** | — | nichts, bis der Nutzer geantwortet hat |
 
 Zeigt **kein** Remote auf `real-life-org/real-life-stack`, frag nach — dann fehlt entweder der Upstream oder es ist ein anderes Projekt. Nicht raten.
 
@@ -244,7 +250,7 @@ Der Haupt-Checkout wird dabei **nicht angefasst**: kein Branch-Wechsel, kein Sta
 
 Danach das Manifest unter `~/.rls-modul/<modul>.yml` anlegen (Felder siehe oben) mit `upstreamRemote`, `pushPlan` und `phase: plan-freigegeben`. `pushRemote` und `prHead` bleiben leer — sie werden in Phase 8 gefüllt, wenn feststeht, wohin tatsächlich gepusht wird. **Ab jetzt kommt jeder Pfad und jeder Remote aus dieser Datei.**
 
-Ist `git worktree` nicht nutzbar (kein Git-Repo, alte Version), sag es und arbeite ersatzweise auf einem frischen Branch aus `origin/master` — dann aber erst nach `git status` und ausdrücklicher Zustimmung, weil das den Checkout des Nutzers verändert.
+Ist `git worktree` nicht nutzbar (kein Git-Repo, alte Version), sag es und arbeite ersatzweise auf einem frischen Branch — die Basis ist auch dann `<upstreamRemote>/master` aus dem Manifest, nicht `origin/master`. Dieser Weg verändert den Checkout des Nutzers, also erst nach `git status` und ausdrücklicher Zustimmung.
 
 ## Phase 5 — Modul-Spec schreiben
 
@@ -270,20 +276,23 @@ Sobald die Check-Kette grün durchläuft: `phase: implementiert` ins Manifest.
 
 Erst die Checks aus `reference/implementierung.md`, dann der Mensch:
 
-**Beide Server laufen im Vordergrund und blockieren, bis man sie abbricht** — sie gehören also in getrennte Aufrufe, nicht untereinander in einen Block. Starte den, den der Nutzer gerade braucht, im Hintergrund; den zweiten nur, wenn er wirklich zusätzlich gebraucht wird.
+Beide Server laufen, bis man sie abbricht. Starte nur den, den der Nutzer gerade braucht, und **wirklich im Hintergrund** — sonst blockiert der Aufruf und du kommst nicht weiter. Hat dein Werkzeug einen Hintergrund-Modus für Shell-Aufrufe, nimm ihn; sonst hängt der Prozess selbst ab und die PID wird festgehalten:
 
 ```bash
 # Beispiel-Manifest: worktree=/home/x/code/rls-garden-planner
-# Reference-App (Vite) — im Hintergrund starten, Ausgabe mitschreiben:
-pnpm -C /home/x/code/rls-garden-planner dev:reference
+cd /home/x/code/rls-garden-planner && \
+  nohup pnpm dev:reference > /tmp/rls-garden-planner-dev.log 2>&1 &
+echo "devServerPid: $!"        # ins Manifest eintragen
+sleep 5 && grep -m1 "Local:" /tmp/rls-garden-planner-dev.log   # tatsaechlicher Port
 ```
 
-```bash
-# Nur bei Bedarf, als EIGENER Aufruf — Komponenten isoliert, Port 6006:
-pnpm -C /home/x/code/rls-garden-planner storybook
-```
+Storybook nur, wenn es zusätzlich wirklich gebraucht wird, als **eigener** Aufruf nach demselben Muster (`pnpm storybook`, eigene Logdatei, eigene PID).
 
-Läuft schon ein Dev-Server (`ss -ltnp | grep -E '517[0-9]|6006'`), nimm einen anderen Port statt den fremden Prozess zu stören — der Worktree ist ein eigenes Verzeichnis, mehrere Instanzen können parallel laufen. Sag dem Nutzer die URL und den Port, den du tatsächlich bekommen hast, nicht den erwarteten.
+Ins Manifest gehören `devServerPid` und der Pfad der Logdatei. Ohne das weiß ein späterer Aufruf nicht, was er gestartet hat, und der Prozess bleibt nach Sitzungsende hängen.
+
+Läuft schon ein Dev-Server (`ss -ltnp | grep -E '517[0-9]|6006'`), stör den fremden Prozess nicht — Vite nimmt selbst den nächsten freien Port, der Worktree ist ein eigenes Verzeichnis. **Nenn dem Nutzer den Port aus der Logdatei**, nicht den erwarteten.
+
+Wenn der Nutzer fertig ist, den Server mit `kill` und der PID aus dem Manifest beenden, beide Felder entfernen und die Logdatei aufräumen — spätestens bevor du in Phase 8 gehst.
 
 Sag konkret, **was der Nutzer anklicken soll** und **was er sehen müsste**: Modul öffnen, Item anlegen, Item bearbeiten, Filter, Detail-Panel, leerer Zustand, Space ohne das Modul, unbekannter Item-Typ. Feedback einarbeiten und erneut vorlegen. Die Schleife läuft, bis **der Nutzer** zufrieden ist — nicht bis du es bist.
 
