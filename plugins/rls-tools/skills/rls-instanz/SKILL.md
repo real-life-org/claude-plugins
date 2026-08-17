@@ -7,6 +7,10 @@ description: >
   Skill, wenn jemand sagt "eigene Instanz", "unsere eigene Domain", "eigene
   Landingpage", "Farben anpassen", "Logo einbauen" oder "Self-Hosting".
 disable-model-invocation: true
+# Nur Lesendes ist vorab freigegeben. `allowed-tools` schraenkt nicht ein,
+# sondern erlaubt OHNE Rueckfrage — Docker-Aufrufe, Dateiaenderungen und
+# alles Veroeffentlichende laufen darum bewusst durch den normalen
+# Genehmigungsweg. Das ist Absicht, kein fehlender Eintrag.
 allowed-tools: [Read, Grep, Glob]
 ---
 
@@ -54,13 +58,24 @@ Schreib in jedem Befehl den vollen Pfad aus (`docker compose -f /voller/pfad/...
 
 Gibt es schon eins (erkennbar an `docker-compose.preview.yml` und `branding/`), arbeite dort weiter.
 
-Sonst leg eins an. **Der Stack wird dafür nicht gebraucht** — es werden nur Konfigurationsdateien geschrieben, die App kommt als Image. Frag, wohin die Instanz soll; ein neues Verzeichnis auf fremder Platte ist keine Selbstverständlichkeit. Dann hol die Vorlagen einzeln aus dem veröffentlichten Stand:
+Sonst leg eins an. **Der Stack wird dafür nicht gebraucht** — es werden nur Konfigurationsdateien geschrieben, die App kommt als Image. Frag, wohin die Instanz soll; ein neues Verzeichnis auf fremder Platte ist keine Selbstverständlichkeit.
+
+**Vorlagen und Image müssen aus derselben Version stammen.** Sie gehören zusammen: Die compose beschreibt, welche Umgebungsvariablen das Image erwartet und auf welchem Port es lauscht. Vom beweglichen `master` geholte Vorlagen mit einem gepinnten Image zu kombinieren, ergibt eine Instanz, die scheinbar konfiguriert ist und trotzdem nicht läuft.
+
+Bestimm die Version darum **einmal** und benutz sie für beides:
 
 ```bash
-# Beispiel: Instanz nach /home/x/code/unser-netzwerk
+# Neueste veroeffentlichte App-Version — Release-Tags heissen app-vX.Y.Z
+gh release list --repo real-life-org/real-life-stack --limit 20 \
+  | grep -o 'app-v[0-9.]*' | head -n1
+```
+
+Dann alles von genau diesem Tag holen (Beispiel: `app-v0.2.4`, Instanz nach `/home/x/code/unser-netzwerk`):
+
+```bash
 mkdir -p /home/x/code/unser-netzwerk/landing /home/x/code/unser-netzwerk/branding
 cd /home/x/code/unser-netzwerk
-BASE=https://raw.githubusercontent.com/real-life-org/real-life-stack/master/deploy/app
+BASE=https://raw.githubusercontent.com/real-life-org/real-life-stack/app-v0.2.4/deploy/app
 curl -fsSLO "$BASE/docker-compose.yml"
 curl -fsSLO "$BASE/docker-compose.preview.yml"
 curl -fsSL "$BASE/.env.example" -o .env
@@ -68,7 +83,17 @@ curl -fsSL "$BASE/branding/theme.json" -o branding/theme.json
 curl -fsSL "$BASE/landing-default/index.html" -o landing/index.html
 ```
 
-Liegt der Stack ohnehin lokal, geht auch `cp` aus dessen `deploy/app/` — aber **kopiere `docker-compose.build.yml` nicht mit**: Die Datei baut aus dem Monorepo und ergibt außerhalb davon keinen Sinn.
+Und **dieselbe** Version in die `.env`, als Erstes noch vor Domain und Name:
+
+```
+RLS_IMAGE_TAG=0.2.4
+```
+
+Scheitert einer der Downloads, hör auf: Eine halb geholte Vorlage ist schlimmer als keine. Gibt es noch gar kein Release, gibt es auch kein Image — dann ist die Instanz noch nicht dran.
+
+Liegt der Stack lokal, geht `cp` aus dessen `deploy/app/` **nur, wenn er auf demselben Release-Tag steht** (`git -C /pfad describe --tags`). Und **kopiere `docker-compose.build.yml` nicht mit**: Die Datei baut aus dem Monorepo und ergibt außerhalb davon keinen Sinn.
+
+Muss der Stack geklont werden, dann **neben** das Instanz-Verzeichnis, nie hinein — sonst landet ein ganzes Monorepo im Repo der Instanz.
 
 Prüf danach, dass die Instanz wirklich eigenständig ist:
 
@@ -99,7 +124,15 @@ Ohne laufende Vorschau gestaltest du blind.
 docker compose -f /home/x/code/unser-netzwerk/docker-compose.preview.yml up -d
 ```
 
-Es wird **nichts gebaut** — das Image wird gezogen. Der erste Lauf lädt es herunter und dauert je nach Leitung einen Moment; danach startet die Instanz in Sekunden auf `http://localhost:8080` (Port über `RLS_PORT` änderbar, falls belegt).
+Es wird **nichts gebaut** — das Image wird gezogen. Der erste Lauf lädt es herunter und dauert je nach Leitung einen Moment.
+
+**Den Port nimmst du aus der laufenden Instanz, nicht aus dem Beispiel.** `RLS_PORT` ist konfigurierbar, und Docker meldet, was tatsächlich vergeben wurde:
+
+```bash
+docker compose -f /home/x/code/unser-netzwerk/docker-compose.preview.yml port app 8080
+```
+
+Diese Adresse benutzt du danach überall — beim Öffnen im Browser, in jedem Screenshot-Aufruf und wenn du dem Nutzer sagst, wo er hinschauen soll. `8080` in den Beispielen unten ist genau das: ein Beispiel.
 
 Scheitert das Ziehen, liegt es fast immer an einem Tag, den es nicht gibt, oder an fehlender Anmeldung bei einem privaten Paket — nicht am Verzeichnis des Nutzers. Nenn die Fehlermeldung, statt einen Build zu versuchen.
 
@@ -114,7 +147,7 @@ Läuft kein Docker auf der Maschine, sag es klar und hör hier auf: Ohne Vorscha
 
 Der Kern dieses Skills: **ändern, ansehen, weitermachen.** Du schaust dir dein Ergebnis selbst an, statt es zu behaupten.
 
-Mit den Chrome-DevTools-Werkzeugen: Seite öffnen (`http://localhost:8080` für die Landingpage, `/app` für die App), Screenshot machen, beurteilen, nachbessern. Zeig dem Nutzer, was du siehst, statt es zu beschreiben.
+Mit den Chrome-DevTools-Werkzeugen: Seite öffnen (die Adresse aus Phase 2 für die Landingpage, `/app` darunter für die App), Screenshot machen, beurteilen, nachbessern. Zeig dem Nutzer, was du siehst, statt es zu beschreiben.
 
 **Welche Farbtokens es gibt, fragst du die laufende Instanz** — nie aus einer Liste, die veraltet:
 
@@ -147,13 +180,26 @@ Für die Landingpage gilt nichts von alldem: eigene Datei, freie Hand. Sie soll 
 
 **Erst nach ausdrücklicher Freigabe** — dass die Seite gefällt, ist noch keine Zustimmung zum Veröffentlichen. Zeig vorher, was rausgeht.
 
+**Schau zuerst, was schon im Index liegt.** Ein `git commit` nimmt alles Vorgestagte mit — auch was jemand vor dieser Sitzung dort abgelegt hat und was der Nutzer gerade gar nicht freigegeben hat:
+
 ```bash
-git -C /home/x/code/unser-netzwerk status
-git -C /home/x/code/unser-netzwerk add landing/index.html branding/theme.json
+git -C /home/x/code/unser-netzwerk status --short
+git -C /home/x/code/unser-netzwerk diff --cached --name-only
+```
+
+Ist dort Fremdes, **räum den Index leer** (`git restore --staged .`) und stage neu — oder frag, wenn unklar ist, ob es dazugehört.
+
+Dann alles stagen, was zur Freigabe gehört — nicht nur die Textdateien. Ein Logo oder Favicon, das der Nutzer gutgeheißen hat, aber nicht mitcommittet wird, fehlt der Instanz später:
+
+```bash
+git -C /home/x/code/unser-netzwerk add landing branding
+git -C /home/x/code/unser-netzwerk diff --cached --name-only   # zeigen, bevor committet wird
 git -C /home/x/code/unser-netzwerk commit
 ```
 
-Stage gezielt, nie `git add -A`. Und **niemals `.env` committen**, wenn dort etwas steht, das nicht öffentlich sein soll — Domain und Name sind harmlos, aber die Datei ist der Ort, an dem später Schlüssel landen würden.
+`landing` und `branding` sind die Verzeichnisse des Nutzers — dort liegt nur, was zur Instanz gehört. Trotzdem gilt: **nie `git add -A`** im Wurzelverzeichnis, und die Liste vorher zeigen.
+
+**Die `.env` gehört nicht in den Commit**, solange nicht geklärt ist, was darin steht: Heute sind es Domain, Name und Image-Tag, morgen ein Schlüssel. Wenn sie versioniert werden soll, dann bewusst und mit einem Blick hinein.
 
 Ist das Verzeichnis noch kein Repo, frag, ob eines angelegt werden soll und wohin. Ein neues öffentliches Repo ist eine Außenwirkung, die dem Nutzer gehört.
 
