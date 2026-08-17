@@ -5,7 +5,7 @@
 # reference/bestand.md ordnet nur ein; Namen kommen von hier.
 #
 # Aufruf:  ./inventur.sh [pfad-zum-real-life-stack]
-# Ohne Argument wird der Pfad gesucht (RLS_REPO, cwd, uebliche Orte).
+# Ohne Argument wird der Pfad gesucht (cwd aufwaerts, uebliche Orte).
 
 set -uo pipefail
 
@@ -23,7 +23,6 @@ is_repo() {
 
 find_repo() {
   if [ $# -ge 1 ] && [ -n "${1:-}" ]; then echo "$1"; return; fi
-  if [ -n "${RLS_REPO:-}" ]; then echo "$RLS_REPO"; return; fi
   # von cwd aufwaerts
   d=$(pwd)
   while [ "$d" != "/" ]; do
@@ -39,7 +38,7 @@ find_repo() {
 REPO=$(find_repo "${1:-}")
 if [ -z "$REPO" ]; then
   echo "FEHLER: real-life-stack nicht gefunden." >&2
-  echo "Aufruf: inventur.sh /pfad/zum/real-life-stack   (oder RLS_REPO setzen)" >&2
+  echo "Aufruf: inventur.sh /pfad/zum/real-life-stack" >&2
   exit 1
 fi
 # Auch ein ausdruecklich uebergebener Pfad wird geprueft — sonst laeuft die
@@ -57,6 +56,19 @@ cd "$REPO" || exit 1
 # Befehle, damit spaetere Reads, Edits, pnpm- und git-Aufrufe nicht in einem
 # anderen Checkout landen.
 REPO=$(pwd -P)
+
+# Wenn das Repo selbst eine maschinenlesbare Inventur mitbringt, hat sie
+# Vorrang: sie ist versioniert, kennt mehrzeilige Deklarationen und wandert
+# mit Umbauten mit. Das Ableiten per grep unten bleibt der Fallback, damit
+# der Skill auch gegen aeltere Staende arbeitet.
+if [ -f "scripts/inventory.mjs" ]; then
+  echo "Inventur aus dem Repo (scripts/inventory.mjs) — verifizierter Pfad: $REPO"
+  if node scripts/inventory.mjs --json; then
+    printf '\n== Verifizierter Repo-Pfad (ins Manifest uebernehmen) ==\nrepo: %s\n' "$REPO"
+    exit 0
+  fi
+  echo "(scripts/inventory.mjs fehlgeschlagen — Fallback auf abgeleitete Inventur)" >&2
+fi
 
 h() { printf '\n== %s ==\n' "$1"; }
 
@@ -119,5 +131,6 @@ ls packages/ 2>/dev/null | grep connector | tr '\n' ' '; echo
 
 printf '\nLies vor jedem Vorschlag mindestens: docs/spec/06-schema-composition.md,\ndocs/spec/01-app-composition.md, docs/spec/modules/template.md,\ndocs/spec/modules/shared-components.md\n'
 
-# Merksatz fuer den Skill: ab hier laeuft jeder Befehl gegen genau diesen Pfad.
-printf '\n== Verifizierter Repo-Pfad — ab jetzt fuer JEDEN Befehl verwenden ==\nRLS_REPO=%s\n' "$REPO"
+# Der Pfad gehoert ins Manifest, NICHT in eine Shell-Variable — die ueberlebt
+# den naechsten Befehl nicht.
+printf '\n== Verifizierter Repo-Pfad (ins Manifest uebernehmen) ==\nrepo: %s\n' "$REPO"
