@@ -96,8 +96,13 @@ elif [ -f "scripts/inventory.mjs" ]; then
   # Nicht nur "ist JSON": {} und [] sind gueltiges JSON und waeren eine LEERE
   # Inventur — der Skill wuerde daraus "es gibt nichts" lesen und alles neu
   # bauen. Verlangt wird ein Objekt mit mehreren Abschnitten, von denen
-  # mindestens einer wirklich etwas enthaelt. Wenn scripts/inventory.mjs im
-  # Repo eingefuehrt wird, gehoert der Vertrag dort verbindlich festgelegt.
+  # mindestens einer wirklich etwas enthaelt.
+  #
+  # OFFEN: Das ist die Untergrenze, nicht der Vertrag. Wenn
+  # scripts/inventory.mjs im Repo eingefuehrt wird, gehoert dort ein
+  # versioniertes Schema dazu (`version` plus benannte Pflichtabschnitte),
+  # und diese Pruefung wird dagegen geschaerft. Bis dahin bleibt sie
+  # bewusst strukturell, damit sie keine Feldnamen erfindet.
   if out=$(node scripts/inventory.mjs --json 2>/dev/null) \
      && printf '%s' "$out" | node -e '
 let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{

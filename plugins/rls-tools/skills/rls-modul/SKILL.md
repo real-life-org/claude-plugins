@@ -35,7 +35,7 @@ Du bist an diesen beiden Stellen **nicht dienstleistend**. Sag früh und freundl
    → VERÖFFENTLICHUNGS-FREIGABE → 8 PR
 ```
 
-Drei Tore, die der Nutzer öffnet, nicht du: **Plan**, **Spec**, **Veröffentlichung**. Vor dem ersten Tor wird nichts geschrieben, vor dem letzten nichts nach außen gegeben.
+Drei Tore, die der Nutzer öffnet, nicht du: **Plan**, **Spec**, **Veröffentlichung**. Vor dem ersten Tor wird nichts geschrieben, vor dem letzten nichts nach außen gegeben — auch kein Fork. Einzige Ausnahme vor dem Plan-Tor ist ein Clone, wenn das Repo fehlt, und auch der nur auf ausdrückliche Zustimmung (Phase 0).
 
 ## Zustand lebt in einer Datei, nicht im Gedächtnis
 
@@ -95,8 +95,7 @@ Erst wenn alle vier stimmen, arbeite bei „nächster Schritt" der Tabelle weite
 **Pflicht, bevor du irgendetwas vorschlägst.** Handlisten driften lautlos; leite den Bestand jedes Mal frisch ab.
 
 ```bash
-# Haupt-Checkout finden (Default-Branch: master). Fehlt er:
-#   git clone https://github.com/real-life-org/real-life-stack.git
+# Haupt-Checkout finden (Default-Branch: master)
 find ~ -maxdepth 4 -type d -name real-life-stack 2>/dev/null | head
 
 # Inventur — prueft den Pfad und bricht mit Exit 2 ab, wenn dort nicht
@@ -105,6 +104,8 @@ find ~ -maxdepth 4 -type d -name real-life-stack 2>/dev/null | head
 ```
 
 Mehrere Treffer — Worktrees, Fix-Checkouts — sind normal: **frag, welcher gemeint ist**, statt den ersten zu nehmen.
+
+Ist gar keine Kopie da, **klon nicht von dir aus**. Ein Clone legt einige hundert Megabyte an, und wohin, entscheidet der Nutzer. Frag, ob geklont werden soll und in welches Verzeichnis, und nenn den Befehl (`git clone https://github.com/real-life-org/real-life-stack.git`). Das ist die einzige Schreibhandlung vor dem Plan-Tor — sie ist die Voraussetzung dafür, überhaupt etwas beurteilen zu können, und deshalb an die ausdrückliche Zustimmung des Nutzers gebunden.
 
 Der Exit-Code sagt, wie belastbar die Ausgabe ist:
 
@@ -223,16 +224,21 @@ gh repo view real-life-org/real-life-stack --json viewerPermission --jq .viewerP
 
 Zeigt **kein** Remote auf `real-life-org/real-life-stack`, frag nach — dann fehlt entweder der Upstream oder es ist ein anderes Projekt. Nicht raten.
 
+Die Befehle unten sind für ein **Beispiel-Manifest** ausgeschrieben. Setz überall die Werte deines eigenen Manifests ein — die Namen sind nicht fix, `upstream` kann `origin` heißen und umgekehrt:
+
 ```bash
-# <upstream> ist der Remote aus der Tabelle, nicht zwingend "origin":
-git -C /pfad/zum/haupt-checkout fetch upstream
-git -C /pfad/zum/haupt-checkout worktree add \
+# Beispiel-Manifest: repo=/home/x/code/real-life-stack · upstreamRemote=upstream
+#                    modul=garden-planner · worktree=/home/x/code/rls-garden-planner
+git -C /home/x/code/real-life-stack fetch upstream
+git -C /home/x/code/real-life-stack worktree add \
     -b modul/garden-planner \
-    /pfad/zum/haupt-checkout-garden-planner \
+    /home/x/code/rls-garden-planner \
     upstream/master
 
-pnpm -C /pfad/zum/haupt-checkout-garden-planner install
+pnpm -C /home/x/code/rls-garden-planner install
 ```
+
+Zuordnung: `git -C` ← `repo` · `fetch`/Basis ← `upstreamRemote` · `-b` ← `branch` · Zielverzeichnis ← `worktree`.
 
 Der Haupt-Checkout wird dabei **nicht angefasst**: kein Branch-Wechsel, kein Stash, kein `install`. Das `install` im frischen Worktree dauert einen Moment — sag dem Nutzer, dass das normal ist.
 
@@ -264,12 +270,20 @@ Sobald die Check-Kette grün durchläuft: `phase: implementiert` ins Manifest.
 
 Erst die Checks aus `reference/implementierung.md`, dann der Mensch:
 
+**Beide Server laufen im Vordergrund und blockieren, bis man sie abbricht** — sie gehören also in getrennte Aufrufe, nicht untereinander in einen Block. Starte den, den der Nutzer gerade braucht, im Hintergrund; den zweiten nur, wenn er wirklich zusätzlich gebraucht wird.
+
 ```bash
-pnpm -C /worktree/aus/dem/manifest dev:reference    # Reference-App, Vite
-pnpm -C /worktree/aus/dem/manifest storybook        # Komponenten isoliert, Port 6006
+# Beispiel-Manifest: worktree=/home/x/code/rls-garden-planner
+# Reference-App (Vite) — im Hintergrund starten, Ausgabe mitschreiben:
+pnpm -C /home/x/code/rls-garden-planner dev:reference
 ```
 
-Läuft schon ein Dev-Server (`ss -ltnp | grep -E '517[0-9]|6006'`), nimm einen anderen Port statt den fremden Prozess zu stören — der Worktree ist ein eigenes Verzeichnis, beide können parallel laufen.
+```bash
+# Nur bei Bedarf, als EIGENER Aufruf — Komponenten isoliert, Port 6006:
+pnpm -C /home/x/code/rls-garden-planner storybook
+```
+
+Läuft schon ein Dev-Server (`ss -ltnp | grep -E '517[0-9]|6006'`), nimm einen anderen Port statt den fremden Prozess zu stören — der Worktree ist ein eigenes Verzeichnis, mehrere Instanzen können parallel laufen. Sag dem Nutzer die URL und den Port, den du tatsächlich bekommen hast, nicht den erwarteten.
 
 Sag konkret, **was der Nutzer anklicken soll** und **was er sehen müsste**: Modul öffnen, Item anlegen, Item bearbeiten, Filter, Detail-Panel, leerer Zustand, Space ohne das Modul, unbekannter Item-Typ. Feedback einarbeiten und erneut vorlegen. Die Schleife läuft, bis **der Nutzer** zufrieden ist — nicht bis du es bist.
 
@@ -292,20 +306,23 @@ git -C /worktree/aus/dem/manifest commit    # kein --no-verify
 
 **Erst nach der Freigabe** wird irgendetwas nach außen gegeben — auch der Fork. Was zu tun ist, steht als `pushPlan` im Manifest.
 
-Bei `pushPlan: fork` zuerst den Fork anlegen und als Remote eintragen. `gh repo fork` legt ohne weiteres Zutun **keinen** Remote im Worktree an, der Remote muss also gesetzt werden:
+Bei `pushPlan: fork` zuerst den Fork anlegen und als Remote eintragen. `gh repo fork` legt ohne weiteres Zutun **keinen** Remote im Worktree an, der Remote muss also gesetzt werden. Den eigenen Kontonamen abfragen statt annehmen:
 
 ```bash
+# Beispiel-Manifest: worktree=/home/x/code/rls-garden-planner · pushPlan=fork
 gh repo fork real-life-org/real-life-stack --clone=false --remote=false
-# Der Fork liegt unter <owner>/real-life-stack — <owner> = `gh api user --jq .login`
-git -C /worktree/aus/dem/manifest remote add fork git@github.com:timo/real-life-stack.git
+gh api user --jq .login          # liefert den Owner des Forks, hier: timo
+git -C /home/x/code/rls-garden-planner remote add fork git@github.com:timo/real-life-stack.git
 ```
 
-Dann `pushRemote: fork` und `prHead: timo:modul/garden-planner` ins Manifest schreiben. Bei `pushPlan: direkt` sind es stattdessen `pushRemote: <upstreamRemote>` und `prHead: modul/garden-planner`.
+Dann ins Manifest: `pushRemote: fork` und `prHead: timo:modul/garden-planner`. Bei `pushPlan: direkt` stattdessen `pushRemote:` = der Wert von `upstreamRemote` und `prHead:` = der nackte Branchname.
 
-Jetzt pushen und den PR öffnen — **beide Werte aus dem Manifest**, nichts fest verdrahtet:
+Jetzt pushen und den PR öffnen — **jeder Wert aus dem Manifest**, nichts fest verdrahtet:
 
 ```bash
-git -C /worktree/aus/dem/manifest push -u fork modul/garden-planner
+# Beispiel-Manifest: worktree=/home/x/code/rls-garden-planner · pushRemote=fork
+#                    branch=modul/garden-planner · prHead=timo:modul/garden-planner
+git -C /home/x/code/rls-garden-planner push -u fork modul/garden-planner
 
 gh pr create \
   --repo real-life-org/real-life-stack \
@@ -313,6 +330,8 @@ gh pr create \
   --head timo:modul/garden-planner \
   --title "…" --body "…"
 ```
+
+Zuordnung: `git -C` ← `worktree` · `push -u` ← `pushRemote` · Branchname ← `branch` · `--head` ← `prHead`. Steht im Manifest `origin` statt `fork`, heißt der Remote im Befehl `origin`.
 
 `--repo` **und** `--head` sind Pflicht: ohne `--head` rät `gh` den Branch aus dem Arbeitsverzeichnis, das hier nicht der Worktree ist. Beim Fork trägt `--head` das `owner:`-Präfix, sonst sucht `gh` den Branch im Zielrepo, wo er nicht liegt.
 
