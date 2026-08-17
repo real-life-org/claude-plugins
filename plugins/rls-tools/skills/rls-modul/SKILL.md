@@ -86,11 +86,13 @@ Spiegele die Anforderung einmal in deinen Worten zurück, bevor du weitermachst.
 
 **Diese Phase überspringst du nie**, auch wenn der Wunsch harmlos klingt. Geh `reference/grenzen.md` durch und prüf den Wunsch dagegen. Die häufigsten Anschläge:
 
-- Auswertung, Summen, Ranglisten über große Mengen → es gibt keine Aggregation, nur clientseitige Arbeit auf geladenen Items
-- Suche über alles → es gibt keine Volltextsuche
-- Erinnerungen, E-Mails, zeitgesteuerte Automatik → es gibt keinen Server, der rechnet
-- Genehmigungsketten, Rollen, Feldrechte → Autorisierung ist grob und Sichtbarkeit läuft über Spaces
+- Auswertung, Summen, Ranglisten über große Mengen → keine Aggregation im Vertrag, nur clientseitige Arbeit auf geladenen Items
+- Suche über alles → keine Volltextsuche im Vertrag
+- Erinnerungen, E-Mails, zeitgesteuerte Automatik → ein Modul darf keinen rechnenden Server voraussetzen
+- Genehmigungsketten, Rollen, Feldrechte → Autorisierung ist grob und optional, Sichtbarkeit läuft über Spaces
 - Mehrstufige Wizards in gestapelten Panels → eine Overlay-Fläche pro Ebene
+
+Merksatz: Ein Modul läuft gegen **jeden** Connector (`local`, `mock`, `supabase`, `graphql`, `wot`). Was ein einzelnes Backend zusätzlich kann, darf nie Voraussetzung werden.
 
 Wenn etwas anschlägt, führ das Gespräch über die fünf Verkleinerungs-Fragen aus `reference/grenzen.md`:
 
@@ -218,13 +220,21 @@ pnpm storybook        # Komponenten isoliert, Port 6006
 Erst wenn der Nutzer ausdrücklich zufrieden ist:
 
 ```bash
-git checkout -b modul/<modul-name>
-git add -A && git commit    # aussagekräftige Message, kein --no-verify
+git status                          # erst schauen: was liegt im Worktree?
+git branch --show-current           # und auf welchem Branch stehst du?
+
+# Vom aktuellen master abzweigen, NICHT vom irgendwo stehenden Arbeitsstand:
+git fetch origin && git checkout -b modul/<modul-name> origin/master
+
+git add <die-dateien-des-moduls>    # gezielt, nie `git add -A`
+git commit                          # aussagekräftige Message, kein --no-verify
 git push -u origin modul/<modul-name>
 gh pr create --repo real-life-org/real-life-stack --base master
 ```
 
 - **Nie auf `master` pushen.** Immer Branch + PR.
+- **Nie `git add -A`** und nie vom beliebigen Ausgangsstand branchen. Beides veröffentlicht sonst fremde Änderungen, die zufällig im Worktree lagen — im schlimmsten Fall lokale Konfigurationen oder halbfertige Arbeit von jemand anderem. Stage die Dateien, die zum Modul gehören, einzeln.
+- Lagen vorher schon fremde Änderungen im Worktree: **nicht mitnehmen**, sondern ansprechen. `git stash` ist eine Option, aber nur mit Wissen des Nutzers.
 - **Ein PR pro Modul** (maximal zwei, wenn Spec und Implementierung sinnvoll trennbar sind). Nicht in fünf Häppchen zerlegen.
 - Wer keine Push-Rechte auf `real-life-org/real-life-stack` hat, arbeitet über einen Fork (`gh repo fork`) und stellt den PR von dort.
 

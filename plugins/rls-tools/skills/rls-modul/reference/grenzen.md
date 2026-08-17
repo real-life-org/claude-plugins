@@ -4,29 +4,41 @@ Dieser Text ist dazu da, den Nutzer zu **begrenzen**. Ein Modul, das eine dieser
 
 Wenn ein Wunsch hier anschlägt: **sag es früh, sag es freundlich, und biete den kleineren Schnitt an**, der heute funktioniert.
 
+## Woher diese Grenzen kommen
+
+Ein Modul läuft nicht gegen *ein* Backend, sondern gegen **jeden Connector** — heute mindestens `local`, `mock`, `supabase`, `graphql` und `wot`. Die Grenzen unten sind darum meist keine Aussage darüber, was technisch irgendwo möglich ist, sondern darüber, **was ein Modul voraussetzen darf**.
+
+Der Vertrag ist das `DataInterface` plus die optionalen Capabilities. Was ein einzelner Connector darüber hinaus kann (der Supabase-Connector schränkt `bbox` z.B. serverseitig ein), ist seine Sache und bleibt für das Modul unsichtbar. Ein Modul, das die Fähigkeiten eines bestimmten Backends braucht, ist kein RLS-Modul mehr — es läuft in genau einer Konfiguration und bricht in allen anderen.
+
+Der WoT-Connector ist dabei die **strengste** Konfiguration: Ende-zu-Ende verschlüsselt, CRDT-synchronisiert, kein Server, der den Inhalt sieht. Er setzt den Maßstab, weil ein Modul, das dort funktioniert, überall funktioniert — umgekehrt nicht.
+
+Prüf im Zweifel mit `inventur.sh`, welche Capabilities es gibt, und behandle jede als optional.
+
 ## 1. Abfragen sind einfach
 
-Der Connector kann nur nach `type`, `hasField`, `hasTag`, `createdBy`, `source`, `bbox` und `limit`/`offset` filtern. Alles andere passiert clientseitig auf der bereits geladenen Menge.
+Abgefragt werden kann nur nach `type`, `hasField`, `hasTag`, `createdBy`, `source`, `bbox` und `limit`/`offset`. Alles andere passiert clientseitig auf der bereits geladenen Menge.
 
-Nicht vorhanden: Volltextsuche, serverseitige Sortierung, Bereichsabfragen („alle Termine zwischen X und Y"), Joins über Relationen, Aggregationen (Summen, Durchschnitte, Gruppierungen), serverseitiges Clustering.
+Nicht im Vertrag: Volltextsuche, Sortierung, Bereichsabfragen („alle Termine zwischen X und Y"), Joins über Relationen, Aggregationen (Summen, Durchschnitte, Gruppierungen), Clustering.
 
 Heißt praktisch: Ein Modul, dessen Nutzen an einer Auswertung über zehntausend Items hängt, geht heute nicht. Eines, das ein paar hundert Items im Space sortiert und gruppiert darstellt, geht gut.
 
-## 2. Kein Server, der rechnet
+## 2. Kein Modul darf einen Server voraussetzen
 
-Die Daten sind Ende-zu-Ende verschlüsselt und syncen als CRDT zwischen Geräten. Es gibt keine Serverseite, die den Inhalt sieht.
+Ob es eine rechnende Serverseite gibt, hängt am Connector — im WoT-Betrieb gibt es sie nicht, und dort sind die Daten für jeden Server ohnehin undurchsichtig. Ein Modul kann sich also auf keine verlassen.
 
-Nicht vorhanden: serverseitige Berechnungen, zeitgesteuerte Jobs, E-Mail- oder Push-Versand aus einem Modul heraus, Webhooks, Auswertung über alle Spaces hinweg, „der Server erinnert dich".
+Nicht im Vertrag: serverseitige Berechnungen, zeitgesteuerte Jobs, E-Mail- oder Push-Versand aus einem Modul heraus, Webhooks, Auswertung über alle Spaces hinweg, „der Server erinnert dich".
 
 Heißt praktisch: Alles, was ein Modul tut, tut es im Client eines Menschen, der gerade hinschaut.
 
-## 3. Offline-first
+## 3. Ohne Netz muss es tragen
 
-Ein Modul muss ohne Netz sinnvoll bleiben. Es darf keinen externen Dienst als Voraussetzung haben. Externe Daten sind Anreicherung, nie Fundament.
+Der WoT-Connector arbeitet lokal-first, und die Reference-App läuft auch als native App. Ein Modul muss darum ohne Netz sinnvoll bleiben und darf keinen externen Dienst als Voraussetzung haben. Externe Daten sind Anreicherung, nie Fundament.
 
-## 4. Autorisierung ist grob
+## 4. Autorisierung ist grob und optional
 
-Berechtigungen gibt es pro Ressource für Erstellen, Bearbeiten und Löschen. Nicht vorhanden: Rechte pro Feld, Rollen-Matrizen, Freigabe-Workflows, „nur der Kassenwart darf den Betrag sehen".
+`AuthorizationCapable` ist eine **optionale** Capability: Manche Connectoren bieten sie, andere nicht — ein Modul muss beides aushalten. Wo es sie gibt, greift sie pro Ressource für Erstellen, Bearbeiten und Löschen.
+
+Nicht im Vertrag: Rechte pro Feld, Rollen-Matrizen, Freigabe-Workflows, „nur der Kassenwart darf den Betrag sehen".
 
 Sichtbarkeit wird über **Spaces** geschnitten, nicht über Feldrechte. Wenn etwas nur eine Teilgruppe sehen soll, ist das ein eigener Space.
 

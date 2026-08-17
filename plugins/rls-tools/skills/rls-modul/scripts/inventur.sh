@@ -9,17 +9,20 @@
 
 set -uo pipefail
 
+# Ein Pfad ist nur dann der Stack, wenn diese Marker da sind.
+is_repo() { [ -f "$1/packages/data-interface/src/vocab.ts" ] && [ -d "$1/docs/spec" ]; }
+
 find_repo() {
   if [ $# -ge 1 ] && [ -n "${1:-}" ]; then echo "$1"; return; fi
   if [ -n "${RLS_REPO:-}" ]; then echo "$RLS_REPO"; return; fi
   # von cwd aufwaerts
   d=$(pwd)
   while [ "$d" != "/" ]; do
-    if [ -f "$d/packages/data-interface/src/vocab.ts" ]; then echo "$d"; return; fi
+    if is_repo "$d"; then echo "$d"; return; fi
     d=$(dirname "$d")
   done
   for c in ~/workspace/workspace/real-life-stack ~/workspace/real-life-stack ~/real-life-stack ./real-life-stack; do
-    if [ -f "$c/packages/data-interface/src/vocab.ts" ]; then echo "$c"; return; fi
+    if is_repo "$c"; then echo "$c"; return; fi
   done
   echo ""
 }
@@ -29,6 +32,15 @@ if [ -z "$REPO" ]; then
   echo "FEHLER: real-life-stack nicht gefunden." >&2
   echo "Aufruf: inventur.sh /pfad/zum/real-life-stack   (oder RLS_REPO setzen)" >&2
   exit 1
+fi
+# Auch ein ausdruecklich uebergebener Pfad wird geprueft — sonst laeuft die
+# Inventur auf einem beliebigen Verzeichnis durch und meldet leere Abschnitte
+# als "nichts vorhanden".
+if ! is_repo "$REPO"; then
+  echo "FEHLER: '$REPO' ist kein real-life-stack." >&2
+  echo "Erwartet: packages/data-interface/src/vocab.ts und docs/spec/" >&2
+  echo "Falls das Repo fehlt: git clone https://github.com/real-life-org/real-life-stack.git" >&2
+  exit 2
 fi
 cd "$REPO" || exit 1
 
