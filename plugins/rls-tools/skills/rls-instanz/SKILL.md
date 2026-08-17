@@ -111,7 +111,14 @@ Drei Dinge tragen hier, und alle drei sind nötig:
 
 Die **Version steht damit auch in der `.env`** — dieselbe, aus der die Vorlagen kommen. Gibt es noch gar kein Release, gibt es auch kein Image; dann ist die Instanz noch nicht dran, und du sagst das, statt etwas zusammenzustückeln.
 
-Liegt der Stack lokal, geht `cp` aus dessen `deploy/app/` **nur, wenn er auf demselben Release-Tag steht** (`git -C /pfad describe --tags`). Und **kopiere `docker-compose.build.yml` nicht mit**: Die Datei baut aus dem Monorepo und ergibt außerhalb davon keinen Sinn.
+Liegt der Stack lokal, geht `cp` aus dessen `deploy/app/` **nur, wenn er wirklich auf genau diesem Release-Tag steht und dort nichts geändert ist**:
+
+```bash
+git -C /pfad/zum/stack describe --tags --exact-match          # muss app-v0.2.4 sein
+git -C /pfad/zum/stack status --porcelain -- deploy/app        # muss leer sein
+```
+
+`describe --tags` allein reicht nicht — es liefert auch bei Commits *nach* dem Tag einen Treffer (`app-v0.2.4-7-gabc1234`). Und ein sauberer Tag nützt nichts, wenn im Arbeitsverzeichnis lokale Änderungen an `deploy/app/` liegen: Die Instanz bekäme Vorlagen, die es nirgends veröffentlicht gibt. Stimmt eines von beidem nicht, hol über das Netz. Und **kopiere `docker-compose.build.yml` nicht mit**: Die Datei baut aus dem Monorepo und ergibt außerhalb davon keinen Sinn.
 
 Muss der Stack geklont werden, dann **neben** das Instanz-Verzeichnis, nie hinein — sonst landet ein ganzes Monorepo im Repo der Instanz.
 
@@ -200,7 +207,22 @@ Für die Landingpage gilt nichts von alldem: eigene Datei, freie Hand. Sie soll 
 
 **Erst nach ausdrücklicher Freigabe** — dass die Seite gefällt, ist noch keine Zustimmung zum Veröffentlichen. Zeig vorher, was rausgeht.
 
-**Schau zuerst, was schon im Index liegt.** Ein `git commit` nimmt alles Vorgestagte mit — auch was jemand vor dieser Sitzung dort abgelegt hat und was der Nutzer gerade gar nicht freigegeben hat:
+**Zuerst: Gibt es hier überhaupt ein Repository?** Eine frisch angelegte Instanz ist erst einmal nur ein Verzeichnis — jeder `git`-Befehl darin scheitert, und im schlimmsten Fall greift er auf ein Repository weiter oben im Baum zu und committet dort hinein.
+
+```bash
+git -C /home/x/code/unser-netzwerk rev-parse --show-toplevel 2>/dev/null
+```
+
+Kommt nichts zurück oder ein **anderer** Pfad als das Instanz-Verzeichnis, gibt es hier kein eigenes Repository. Dann **frag**, ob eines angelegt werden soll — und leg es erst nach der Zusage an:
+
+```bash
+git -C /home/x/code/unser-netzwerk init
+printf '.env\n' >> /home/x/code/unser-netzwerk/.gitignore
+```
+
+Ein bestehendes Repository weiter oben im Baum ist ein Grund zum Nachfragen, nicht zum Weitermachen: Die Instanz gehört dann vermutlich woandershin.
+
+**Dann schau, was schon im Index liegt.** Ein `git commit` nimmt alles Vorgestagte mit — auch was jemand vor dieser Sitzung dort abgelegt hat und was der Nutzer gerade gar nicht freigegeben hat:
 
 ```bash
 git -C /home/x/code/unser-netzwerk status --short
@@ -213,7 +235,7 @@ Dann alles stagen, was die Instanz ausmacht. **Nicht nur Landingpage und Farben:
 
 ```bash
 git -C /home/x/code/unser-netzwerk add \
-  docker-compose.yml docker-compose.preview.yml .env.example \
+  docker-compose.yml docker-compose.preview.yml .env.example .gitignore \
   landing branding
 git -C /home/x/code/unser-netzwerk diff --cached --name-only   # zeigen, bevor committet wird
 git -C /home/x/code/unser-netzwerk commit
@@ -221,7 +243,7 @@ git -C /home/x/code/unser-netzwerk commit
 
 `landing` und `branding` sind die Verzeichnisse des Nutzers — dort liegt nur, was zur Instanz gehört. Trotzdem gilt: **nie `git add -A`**, und die Liste vorher zeigen.
 
-**Die `.env` selbst gehört nicht in den Commit**, solange nicht geklärt ist, was darin steht: Heute sind es Domain, Name und Image-Tag, morgen ein Schlüssel. `.env.example` dagegen schon — sie dokumentiert, was gesetzt werden muss, ohne die Werte dieser Instanz preiszugeben. Leg einen `.gitignore`-Eintrag für `.env` an, wenn es noch keinen gibt.
+**Die `.env` selbst gehört nicht in den Commit**, solange nicht geklärt ist, was darin steht: Heute sind es Domain, Name und Image-Tag, morgen ein Schlüssel. `.env.example` dagegen schon — sie dokumentiert, was gesetzt werden muss, ohne die Werte dieser Instanz preiszugeben. Die `.gitignore` mit dem `.env`-Eintrag wird **mitcommittet**: Sonst schützt sie nur diesen einen Rechner, und der nächste Klon committet die `.env` beim ersten `git add`.
 
 Ist das Verzeichnis noch kein Repo, frag, ob eines angelegt werden soll und wohin. Ein neues öffentliches Repo ist eine Außenwirkung, die dem Nutzer gehört.
 
