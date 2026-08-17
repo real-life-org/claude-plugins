@@ -57,17 +57,41 @@ cd "$REPO" || exit 1
 # anderen Checkout landen.
 REPO=$(pwd -P)
 
+# Exit-Codes: 0 = vollstaendig · 1 = Repo nicht gefunden · 2 = falscher Pfad
+#             3 = Inventur DEGRADIERT (repo-eigene Quelle da, aber kaputt)
+
 # Wenn das Repo selbst eine maschinenlesbare Inventur mitbringt, hat sie
 # Vorrang: sie ist versioniert, kennt mehrzeilige Deklarationen und wandert
-# mit Umbauten mit. Das Ableiten per grep unten bleibt der Fallback, damit
-# der Skill auch gegen aeltere Staende arbeitet.
-if [ -f "scripts/inventory.mjs" ]; then
-  echo "Inventur aus dem Repo (scripts/inventory.mjs) — verifizierter Pfad: $REPO"
-  if node scripts/inventory.mjs --json; then
+# mit Umbauten mit. Das Ableiten per grep unten ist der Fallback fuer aeltere
+# Staende — aber NICHT der stille Ersatz fuer eine kaputte Quelle.
+DEGRADIERT=0
+if [ -f "scripts/inventory.mjs" ] && ! command -v node >/dev/null 2>&1; then
+  DEGRADIERT=1
+  cat <<'WARN'
+!! WARNUNG — INVENTUR DEGRADIERT !!
+Das Repo bringt scripts/inventory.mjs mit, aber `node` ist in dieser Shell
+nicht im PATH. Setz den PATH und ruf die Inventur erneut auf, statt der
+Ersatz-Inventur unten zu vertrauen.
+WARN
+elif [ -f "scripts/inventory.mjs" ]; then
+  if out=$(node scripts/inventory.mjs --json 2>/dev/null) \
+     && printf '%s' "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const o=JSON.parse(s);process.exit(o&&typeof o==="object"?0:1)}catch{process.exit(1)}})'; then
+    echo "Inventur aus dem Repo (scripts/inventory.mjs) — verifizierter Pfad: $REPO"
+    printf '%s\n' "$out"
     printf '\n== Verifizierter Repo-Pfad (ins Manifest uebernehmen) ==\nrepo: %s\n' "$REPO"
     exit 0
   fi
-  echo "(scripts/inventory.mjs fehlgeschlagen — Fallback auf abgeleitete Inventur)" >&2
+  DEGRADIERT=1
+  # Bewusst nach stdout, nicht nur stderr: der Fallback darf nicht wie eine
+  # normale, vollstaendige Inventur aussehen.
+  cat <<'WARN'
+!! WARNUNG — INVENTUR DEGRADIERT !!
+scripts/inventory.mjs ist vorhanden, liefert aber kein gueltiges JSON.
+Was unten folgt, ist die abgeleitete Ersatz-Inventur: sie liest per grep und
+kann mehrzeilige Deklarationen und neuere Strukturen uebersehen. Fehlende
+Abschnitte bedeuten hier NICHT "nichts vorhanden".
+Melde das dem Nutzer, bevor du auf dieser Grundlage etwas vorschlaegst.
+WARN
 fi
 
 h() { printf '\n== %s ==\n' "$1"; }
@@ -129,8 +153,29 @@ ls packages/toolkit/src/components/lens/ 2>/dev/null | grep -v '\.stories\.' | t
 h "Connectoren"
 ls packages/ 2>/dev/null | grep connector | tr '\n' ' '; echo
 
+h "Remotes (entscheidet ueber Fork- vs. Direkt-Workflow)"
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  git remote -v 2>/dev/null | sed 's/^/  /'
+  # Der Remote, der auf real-life-org zeigt, ist die Quelle der Wahrheit —
+  # egal ob er origin oder upstream heisst. Er liefert die Branch-Basis und
+  # ist das PR-Ziel; gepusht wird dagegen dorthin, wo man schreiben darf.
+  UPSTREAM_REMOTE=$(git remote -v 2>/dev/null | awk '/real-life-org\/real-life-stack.*fetch/ {print $1; exit}')
+  printf '  Remote auf real-life-org: %s\n' "${UPSTREAM_REMOTE:-(keiner — Fork ohne upstream?)}"
+  printf '  Branch-Basis: %s\n' "${UPSTREAM_REMOTE:-origin}/master"
+  if [ -n "$UPSTREAM_REMOTE" ] && [ "$UPSTREAM_REMOTE" != "origin" ]; then
+    printf '  FORK-WORKFLOW: push nach origin, PR mit --head <owner>:<branch>\n'
+  fi
+else
+  echo "  (kein git-Repo)"
+fi
+
 printf '\nLies vor jedem Vorschlag mindestens: docs/spec/06-schema-composition.md,\ndocs/spec/01-app-composition.md, docs/spec/modules/template.md,\ndocs/spec/modules/shared-components.md\n'
 
 # Der Pfad gehoert ins Manifest, NICHT in eine Shell-Variable — die ueberlebt
 # den naechsten Befehl nicht.
 printf '\n== Verifizierter Repo-Pfad (ins Manifest uebernehmen) ==\nrepo: %s\n' "$REPO"
+
+if [ "$DEGRADIERT" = "1" ]; then
+  printf '\n!! Diese Inventur war DEGRADIERT (Exit 3) — siehe Warnung oben. !!\n'
+  exit 3
+fi

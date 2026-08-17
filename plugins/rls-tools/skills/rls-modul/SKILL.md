@@ -48,6 +48,9 @@ modul: garden-planner
 repo: /home/x/code/real-life-stack                    # verifizierter Haupt-Checkout
 worktree: /home/x/code/real-life-stack-garden-planner # hier wird gearbeitet
 branch: modul/garden-planner
+upstreamRemote: upstream        # Remote, der auf real-life-org zeigt (Basis + PR-Ziel)
+pushRemote: origin              # wohin gepusst wird (bei Fork: der Fork)
+prHead: timo:modul/garden-planner   # --head fuer gh; ohne Fork nur der Branchname
 phase: spec-freigegeben
 scope: Beete anlegen, Pflanzungen eintragen, Gießplan sehen
 nonGoals: keine Ertragsstatistik, keine Erinnerungen, kein Wetterdienst
@@ -57,7 +60,34 @@ Regeln:
 
 1. **Jeden Pfad aus dem Manifest lesen**, nicht aus dem Gedächtnis, und in jedem Befehl **ausschreiben** (`git -C /voller/pfad …`, `pnpm -C /voller/pfad …`).
 2. Nie auf ein Arbeitsverzeichnis verlassen. Auf Entwicklungsmaschinen liegen mehrere Checkouts und Worktrees desselben Projekts nebeneinander.
-3. `phase:` nach jedem erreichten Tor fortschreiben, damit ein späterer Aufruf weiß, wo er steht.
+3. `phase:` nach jedem erreichten Tor fortschreiben — **direkt danach**, nicht am Ende der Sitzung.
+
+`phase:` kennt genau diese Werte, in dieser Reihenfolge:
+
+| Wert | Bedeutet | Nächster Schritt |
+|---|---|---|
+| `plan-freigegeben` | Datenmodell abgenommen, Worktree steht | Phase 5 (Spec) |
+| `spec-freigegeben` | Spec abgenommen | Phase 6 (Implementierung) |
+| `implementiert` | Checks grün | Phase 7 (Test durch den Nutzer) |
+| `getestet` | Nutzer zufrieden | Phase 8, aber erst nach Veröffentlichungs-Freigabe |
+| `veroeffentlicht` | PR steht | nichts — Link zeigen, ggf. Worktree aufräumen |
+
+## Wiedereinstieg
+
+**Prüf beim Start immer zuerst, ob es schon einen Arbeitsstand gibt:**
+
+```bash
+ls ~/.rls-modul/ 2>/dev/null && cat ~/.rls-modul/*.yml 2>/dev/null
+```
+
+Findest du ein Manifest zum Thema des Nutzers, steig dort ein statt von vorn anzufangen — und prüf vorher, ob es noch stimmt:
+
+1. Existiert `worktree:` noch als Verzeichnis? Wenn nicht: Manifest ist verwaist — dem Nutzer sagen, Phase 4 neu machen oder Manifest löschen.
+2. Steht dort noch `branch:`? (`git -C /worktree branch --show-current`) Weicht es ab, hat jemand von Hand eingegriffen: **fragen**, nicht korrigieren.
+3. Ist `phase:` einer der Werte oben? Fehlt er oder ist er unbekannt, ist das Manifest kaputt — nicht raten, sondern den Stand mit dem Nutzer klären.
+4. Passt die Phase zum tatsächlichen Zustand? Steht `implementiert`, liegen aber keine Änderungen im Worktree (`git -C /worktree status --short`), stimmt etwas nicht — ansprechen.
+
+Erst wenn alle vier stimmen, arbeite bei „nächster Schritt" der Tabelle weiter. **Ein Tor gilt nur als durchschritten, wenn das Manifest es sagt** — nicht, weil es im Gespräch mal vorkam. Bereits erteilte Freigaben werden nicht erneut eingeholt, aber auch nicht angenommen.
 
 ## Phase 0 — Repo finden und Inventur ableiten
 
@@ -73,7 +103,18 @@ find ~ -maxdepth 4 -type d -name real-life-stack 2>/dev/null | head
 "$CLAUDE_PLUGIN_ROOT/skills/rls-modul/scripts/inventur.sh" /gefundener/pfad
 ```
 
-Mehrere Treffer — Worktrees, Fix-Checkouts — sind normal: **frag, welcher gemeint ist**, statt den ersten zu nehmen. Exit 2 heißt falscher Pfad: klären, nicht weiterarbeiten.
+Mehrere Treffer — Worktrees, Fix-Checkouts — sind normal: **frag, welcher gemeint ist**, statt den ersten zu nehmen.
+
+Der Exit-Code sagt, wie belastbar die Ausgabe ist:
+
+| Code | Bedeutung | Was du tust |
+|---|---|---|
+| 0 | vollständige Inventur | normal weiterarbeiten |
+| 1 | Repo nicht gefunden | Pfad klären, nicht weiterarbeiten |
+| 2 | Pfad ist nicht der Stack | Pfad klären, nicht weiterarbeiten |
+| 3 | **degradiert** — das Repo bringt eine maschinenlesbare Inventur mit, die aber nicht läuft (kaputt oder `node` fehlt) | **dem Nutzer melden**, bevor du irgendetwas vorschlägst |
+
+Bei Exit 3 stammt die Ausgabe aus der abgeleiteten Ersatz-Inventur. Die liest per `grep` und kann Neueres übersehen: **ein leerer Abschnitt heißt dort nicht „gibt es nicht".** Auf dieser Grundlage darfst du nicht entscheiden, dass etwas neu gebaut werden muss.
 
 Lies danach `reference/bestand.md` und `reference/grenzen.md` aus diesem Skill; sie ordnen die Ausgabe ein. Bei Widerspruch gilt die Skript-Ausgabe.
 
@@ -160,21 +201,31 @@ Die letzten drei Zeilen sind Pflicht. Ist die Liste neuer Komponenten länger al
 
 ## Phase 4 — Arbeitsplatz einrichten
 
-**Erst hier wird zum ersten Mal geschrieben, und zwar nie im Haupt-Checkout.** Der kann einen laufenden Dev-Server, fremde Änderungen oder einen anderen Branch haben. Ein eigener Worktree macht all das gegenstandslos:
+**Erst hier wird zum ersten Mal geschrieben, und zwar nie im Haupt-Checkout.** Der kann einen laufenden Dev-Server, fremde Änderungen oder einen anderen Branch haben. Ein eigener Worktree macht all das gegenstandslos.
+
+**Zuerst klären, wie das Repo angebunden ist** — die Inventur hat es unter „Remotes" ausgegeben. `origin` ist **nicht** automatisch das zentrale Repo:
+
+| Lage | Basis für den Branch | Push nach | `--head` für `gh` |
+|---|---|---|---|
+| Direkter Zugriff (`origin` = real-life-org) | `origin/master` | `origin` | `modul/garden-planner` |
+| Fork (`origin` = eigener Fork, `upstream` = real-life-org) | `upstream/master` | `origin` | `timo:modul/garden-planner` |
+
+Zeigt **kein** Remote auf `real-life-org/real-life-stack`, frag nach — dann fehlt entweder der Upstream oder es ist ein anderes Projekt. Nicht raten.
 
 ```bash
-git -C /pfad/zum/haupt-checkout fetch origin
+# <upstream> ist der Remote aus der Tabelle, nicht zwingend "origin":
+git -C /pfad/zum/haupt-checkout fetch upstream
 git -C /pfad/zum/haupt-checkout worktree add \
     -b modul/garden-planner \
     /pfad/zum/haupt-checkout-garden-planner \
-    origin/master
+    upstream/master
 
 pnpm -C /pfad/zum/haupt-checkout-garden-planner install
 ```
 
 Der Haupt-Checkout wird dabei **nicht angefasst**: kein Branch-Wechsel, kein Stash, kein `install`. Das `install` im frischen Worktree dauert einen Moment — sag dem Nutzer, dass das normal ist.
 
-Danach das Manifest unter `~/.rls-modul/<modul>.yml` anlegen (Felder siehe oben) mit `phase: plan-freigegeben`. **Ab jetzt kommt jeder Pfad aus dieser Datei.**
+Danach das Manifest unter `~/.rls-modul/<modul>.yml` anlegen (Felder siehe oben), inklusive `upstreamRemote`, `pushRemote` und `prHead`, mit `phase: plan-freigegeben`. **Ab jetzt kommt jeder Pfad und jeder Remote aus dieser Datei.**
 
 Ist `git worktree` nicht nutzbar (kein Git-Repo, alte Version), sag es und arbeite ersatzweise auf einem frischen Branch aus `origin/master` — dann aber erst nach `git status` und ausdrücklicher Zustimmung, weil das den Checkout des Nutzers verändert.
 
@@ -224,7 +275,7 @@ git -C /worktree/aus/dem/manifest add packages/data-interface/src/vocab.ts
 git -C /worktree/aus/dem/manifest commit    # kein --no-verify
 ```
 
-Nach der Freigabe:
+Nach der Freigabe — Remote und `--head` kommen aus dem Manifest (`pushRemote`, `prHead`):
 
 ```bash
 git -C /worktree/aus/dem/manifest push -u origin modul/garden-planner
@@ -232,11 +283,13 @@ git -C /worktree/aus/dem/manifest push -u origin modul/garden-planner
 gh pr create \
   --repo real-life-org/real-life-stack \
   --base master \
-  --head modul/garden-planner \
+  --head timo:modul/garden-planner \
   --title "…" --body "…"
 ```
 
-`--repo` **und** `--head` sind Pflicht: ohne `--head` rät `gh` den Branch aus dem Arbeitsverzeichnis, das hier nicht der Worktree ist.
+`--repo` **und** `--head` sind Pflicht: ohne `--head` rät `gh` den Branch aus dem Arbeitsverzeichnis, das hier nicht der Worktree ist. Beim Fork-Workflow trägt `--head` zusätzlich das `owner:`-Präfix, sonst sucht `gh` den Branch im Zielrepo, wo er nicht liegt.
+
+Danach `phase: veroeffentlicht` ins Manifest.
 
 PR-Beschreibung auf Deutsch, mit: was das Modul tut und für wen · Datenmodell mit benannter Lücke für jedes neue Vokabular · welche Toolkit-Komponenten wiederverwendet wurden und was neu ist · der Zuschnitt aus Phase 2 (was bewusst draußen blieb) · welches Feld die Modul-Aktivierung trägt · gelaufene Checks mit Ergebnis · offene Punkte und Entscheidungen für Anton.
 

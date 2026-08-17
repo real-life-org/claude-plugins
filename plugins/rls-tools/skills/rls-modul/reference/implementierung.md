@@ -51,14 +51,19 @@ Hier gehört **keine** wiederverwendbare Logik hin. Wenn etwas in einer zweiten 
 
 ## Checks
 
-Immer mit explizitem Worktree-Pfad, nie im Vertrauen auf ein Arbeitsverzeichnis:
+Immer mit explizitem Worktree-Pfad, nie im Vertrauen auf ein Arbeitsverzeichnis — und **fail-fast verkettet**, damit ein roter Test nicht von einem grünen Build danach verdeckt wird:
 
 ```bash
-pnpm -C /pfad/aus/dem/manifest install         # einmalig im frischen Worktree
-pnpm -C /pfad/aus/dem/manifest build:toolkit   # zuerst: Tests lesen dist, nicht src
-pnpm -C /pfad/aus/dem/manifest test
-pnpm -C /pfad/aus/dem/manifest build
-git -C /pfad/aus/dem/manifest diff --check
+pnpm -C /pfad/aus/dem/manifest install &&        # einmalig im frischen Worktree
+pnpm -C /pfad/aus/dem/manifest build:toolkit &&  # zuerst: Tests lesen dist, nicht src
+pnpm -C /pfad/aus/dem/manifest test &&
+pnpm -C /pfad/aus/dem/manifest build &&
+git -C /pfad/aus/dem/manifest diff --check &&
+echo "ALLE CHECKS GRUEN"
 ```
+
+Ohne die `&&`-Kette laufen alle Befehle unabhängig davon durch, ob der vorherige gescheitert ist, und die letzte Ausgabe sieht grün aus, obwohl in der Mitte etwas rot war. Erscheint `ALLE CHECKS GRUEN` nicht, ist mindestens ein Schritt gescheitert — such den ersten Fehler, nicht den letzten.
+
+Beim Nacharbeiten reicht der jeweils betroffene Teil (`test` allein), aber vor dem Vorlegen läuft die ganze Kette.
 
 Fallstrick: Die Vite-Apps lösen `@real-life-stack/toolkit` auf **src** auf, Node und Vitest auf **dist**. Grüner Dev-Server bei roten Tests heißt meistens: `dist` ist stale → `build:toolkit`.
