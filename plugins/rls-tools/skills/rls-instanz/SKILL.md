@@ -30,7 +30,7 @@ Daraus folgt die Grenze, die du **durchsetzt**, auch wenn jemand mehr will:
 
 Wer die App selbst umbauen will, braucht kein Branding, sondern ein **Modul** — dafür gibt es `/rls-tools:rls-modul`. Sag das, statt einen Weg zu suchen.
 
-**Ehrlich bleiben, was heute wirkt:** `appName` setzt den Titel, `faviconUrl` das Tab-Icon, `colors` die Farben. Ein **Logo wird in der App noch nicht dargestellt** — auf der Landingpage natürlich schon. Versprich nichts anderes.
+**Ehrlich bleiben, was heute wirkt:** `appName` setzt den Titel, `faviconUrl` das Tab-Icon, `colors` die Farben. Für ein **Logo in der App gibt es kein Konfigurationsfeld** — die App-Shell hat keine Fläche dafür. Auf der Landingpage ist ein Logo dagegen einfach eine Datei in `branding/`, die du im HTML einbindest. Versprich nichts darüber hinaus.
 
 ## Der Zustand liegt im Verzeichnis
 
@@ -44,7 +44,7 @@ instanz/
 ├── landing/index.html          die Landingpage
 └── branding/
     ├── theme.json              Farben, hell und dunkel
-    ├── logo.svg
+    ├── logo.svg                nur für die Landingpage
     └── favicon.svg
 ```
 
@@ -52,15 +52,31 @@ Schreib in jedem Befehl den vollen Pfad aus (`docker compose -f /voller/pfad/...
 
 ## Phase 0 — Instanz-Verzeichnis
 
-Gibt es schon eins (erkennbar an `docker-compose.preview.yml` und `branding/`), arbeite dort weiter. Sonst leg eins an — die Vorlage liegt im Stack unter `deploy/app/`:
+Gibt es schon eins (erkennbar an `docker-compose.preview.yml` und `branding/`), arbeite dort weiter.
+
+Sonst leg eins an. **Der Stack wird dafür nicht gebraucht** — es werden nur Konfigurationsdateien geschrieben, die App kommt als Image. Frag, wohin die Instanz soll; ein neues Verzeichnis auf fremder Platte ist keine Selbstverständlichkeit. Dann hol die Vorlagen einzeln aus dem veröffentlichten Stand:
 
 ```bash
-# Beispiel: Stack unter /home/x/code/real-life-stack, Instanz nach /home/x/code/unser-netzwerk
-cp -r /home/x/code/real-life-stack/deploy/app /home/x/code/unser-netzwerk
-cp /home/x/code/unser-netzwerk/.env.example /home/x/code/unser-netzwerk/.env
+# Beispiel: Instanz nach /home/x/code/unser-netzwerk
+mkdir -p /home/x/code/unser-netzwerk/landing /home/x/code/unser-netzwerk/branding
+cd /home/x/code/unser-netzwerk
+BASE=https://raw.githubusercontent.com/real-life-org/real-life-stack/master/deploy/app
+curl -fsSLO "$BASE/docker-compose.yml"
+curl -fsSLO "$BASE/docker-compose.preview.yml"
+curl -fsSL "$BASE/.env.example" -o .env
+curl -fsSL "$BASE/branding/theme.json" -o branding/theme.json
+curl -fsSL "$BASE/landing-default/index.html" -o landing/index.html
 ```
 
-Ist der Stack nicht lokal, **frag**, wohin die Instanz soll, und klon ihn dorthin — beides sind Schreibvorgänge auf fremder Platte, keine Selbstverständlichkeit.
+Liegt der Stack ohnehin lokal, geht auch `cp` aus dessen `deploy/app/` — aber **kopiere `docker-compose.build.yml` nicht mit**: Die Datei baut aus dem Monorepo und ergibt außerhalb davon keinen Sinn.
+
+Prüf danach, dass die Instanz wirklich eigenständig ist:
+
+```bash
+grep -rn "build:" /home/x/code/unser-netzwerk/docker-compose*.yml || echo "gut — kein Build-Kontext"
+```
+
+Findet sich dort ein `build:`, ist etwas Falsches mitgekommen. Entfernen, nicht ausprobieren.
 
 Trag in `.env` Domain und Name ein. **Beide sind Pflicht**: Eine Instanz tritt unter ihrer eigenen Adresse auf, eine geerbte wäre jemandes andere.
 
@@ -80,14 +96,16 @@ Kurz, im Gespräch. Du brauchst nur, was die Seite trägt:
 Ohne laufende Vorschau gestaltest du blind.
 
 ```bash
-docker compose -f /home/x/code/unser-netzwerk/docker-compose.preview.yml up -d --build
+docker compose -f /home/x/code/unser-netzwerk/docker-compose.preview.yml up -d
 ```
 
-Der erste Lauf baut das Image und dauert einige Minuten — sag das an, bevor es still wirkt. Danach läuft die Instanz auf `http://localhost:8080` (Port über `RLS_PORT` änderbar, falls belegt).
+Es wird **nichts gebaut** — das Image wird gezogen. Der erste Lauf lädt es herunter und dauert je nach Leitung einen Moment; danach startet die Instanz in Sekunden auf `http://localhost:8080` (Port über `RLS_PORT` änderbar, falls belegt).
+
+Scheitert das Ziehen, liegt es fast immer an einem Tag, den es nicht gibt, oder an fehlender Anmeldung bei einem privaten Paket — nicht am Verzeichnis des Nutzers. Nenn die Fehlermeldung, statt einen Build zu versuchen.
 
 Zwei Dinge, die man auseinanderhalten muss:
 
-- Änderungen an `landing/` und `branding/` wirken **sofort** — Datei speichern, Seite neu laden. Die Verzeichnisse sind gemountet.
+- Änderungen an `landing/` und `branding/theme.json` wirken **sofort** — Datei speichern, Seite neu laden. Die Verzeichnisse sind gemountet, und die Farben werden getrennt geladen.
 - Änderungen an `.env` brauchen ein erneutes `up -d`, weil daraus beim Start die `config.json` entsteht.
 
 Läuft kein Docker auf der Maschine, sag es klar und hör hier auf: Ohne Vorschau ist der Rest Raterei.
@@ -121,7 +139,7 @@ Die wichtigsten sind `--primary` und `--primary-foreground`; `--background`, `--
 }
 ```
 
-Prüfe **beide** Schemata: Die App schaltet auf `.dark` um, und eine Farbe, die hell trägt, kann dunkel unlesbar sein. Ein Token mit unzulässigem Namen oder Wert wird von der App verworfen — steht die Farbe nicht, schau in die Browser-Konsole.
+Prüfe **beide** Schemata: Die App schaltet auf `.dark` um, und eine Farbe, die hell trägt, kann dunkel unlesbar sein. Ein Token wird verworfen, wenn sein Name keines des Toolkits ist oder sein Wert unzulässig — steht eine Farbe nicht, sagt die Browser-Konsole warum. Farbfunktionen wie `oklch()`, `rgb()` und `hsl()` sind erlaubt.
 
 Für die Landingpage gilt nichts von alldem: eigene Datei, freie Hand. Sie soll zur App passen, muss aber nichts von ihr erben. Verlinke die App unter `/app`.
 
