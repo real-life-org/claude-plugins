@@ -64,6 +64,25 @@ REPO=$(pwd -P)
 # Vorrang: sie ist versioniert, kennt mehrzeilige Deklarationen und wandert
 # mit Umbauten mit. Das Ableiten per grep unten ist der Fallback fuer aeltere
 # Staende — aber NICHT der stille Ersatz fuer eine kaputte Quelle.
+# Remote-Lage. Wird von BEIDEN Inventur-Pfaden gebraucht (Phase 4 entscheidet
+# daran ueber Branch-Basis und PR-Ziel), darum als Funktion.
+remotes_block() {
+  printf '\n== Remotes (entscheidet ueber Fork- vs. Direkt-Workflow) ==\n'
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "  (kein git-Repo)"
+    return
+  fi
+  git remote -v 2>/dev/null | sed 's/^/  /'
+  # Der Remote, der auf real-life-org zeigt, ist die Quelle der Wahrheit —
+  # egal ob er origin oder upstream heisst. Er liefert die Branch-Basis und
+  # ist das PR-Ziel.
+  up=$(git remote -v 2>/dev/null | awk '/real-life-org\/real-life-stack.*fetch/ {print $1; exit}')
+  printf '  Remote auf real-life-org: %s\n' "${up:-(keiner — Upstream fehlt oder anderes Projekt)}"
+  printf '  Branch-Basis: %s\n' "${up:-?}/master"
+  printf '  ACHTUNG: Eine Remote-URL sagt NICHTS ueber Schreibrechte.\n'
+  printf '           Push-Ziel erst pruefen (siehe SKILL.md Phase 4), nicht annehmen.\n'
+}
+
 DEGRADIERT=0
 if [ -f "scripts/inventory.mjs" ] && ! command -v node >/dev/null 2>&1; then
   DEGRADIERT=1
@@ -78,6 +97,9 @@ elif [ -f "scripts/inventory.mjs" ]; then
      && printf '%s' "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const o=JSON.parse(s);process.exit(o&&typeof o==="object"?0:1)}catch{process.exit(1)}})'; then
     echo "Inventur aus dem Repo (scripts/inventory.mjs) — verifizierter Pfad: $REPO"
     printf '%s\n' "$out"
+    # Auch hier noetig: das Repo-Skript kennt den Bestand, aber nicht die
+    # lokale Remote-Lage dieses Checkouts.
+    remotes_block
     printf '\n== Verifizierter Repo-Pfad (ins Manifest uebernehmen) ==\nrepo: %s\n' "$REPO"
     exit 0
   fi
@@ -153,21 +175,7 @@ ls packages/toolkit/src/components/lens/ 2>/dev/null | grep -v '\.stories\.' | t
 h "Connectoren"
 ls packages/ 2>/dev/null | grep connector | tr '\n' ' '; echo
 
-h "Remotes (entscheidet ueber Fork- vs. Direkt-Workflow)"
-if git rev-parse --git-dir >/dev/null 2>&1; then
-  git remote -v 2>/dev/null | sed 's/^/  /'
-  # Der Remote, der auf real-life-org zeigt, ist die Quelle der Wahrheit —
-  # egal ob er origin oder upstream heisst. Er liefert die Branch-Basis und
-  # ist das PR-Ziel; gepusht wird dagegen dorthin, wo man schreiben darf.
-  UPSTREAM_REMOTE=$(git remote -v 2>/dev/null | awk '/real-life-org\/real-life-stack.*fetch/ {print $1; exit}')
-  printf '  Remote auf real-life-org: %s\n' "${UPSTREAM_REMOTE:-(keiner — Fork ohne upstream?)}"
-  printf '  Branch-Basis: %s\n' "${UPSTREAM_REMOTE:-origin}/master"
-  if [ -n "$UPSTREAM_REMOTE" ] && [ "$UPSTREAM_REMOTE" != "origin" ]; then
-    printf '  FORK-WORKFLOW: push nach origin, PR mit --head <owner>:<branch>\n'
-  fi
-else
-  echo "  (kein git-Repo)"
-fi
+remotes_block
 
 printf '\nLies vor jedem Vorschlag mindestens: docs/spec/06-schema-composition.md,\ndocs/spec/01-app-composition.md, docs/spec/modules/template.md,\ndocs/spec/modules/shared-components.md\n'
 

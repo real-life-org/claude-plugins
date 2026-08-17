@@ -203,12 +203,20 @@ Die letzten drei Zeilen sind Pflicht. Ist die Liste neuer Komponenten länger al
 
 **Erst hier wird zum ersten Mal geschrieben, und zwar nie im Haupt-Checkout.** Der kann einen laufenden Dev-Server, fremde Änderungen oder einen anderen Branch haben. Ein eigener Worktree macht all das gegenstandslos.
 
-**Zuerst klären, wie das Repo angebunden ist** — die Inventur hat es unter „Remotes" ausgegeben. `origin` ist **nicht** automatisch das zentrale Repo:
+**Zuerst klären, wie das Repo angebunden ist** — die Inventur hat es unter „Remotes" ausgegeben. `origin` ist **nicht** automatisch das zentrale Repo.
+
+Und: **eine Remote-URL sagt nichts über Schreibrechte.** Dass `origin` auf `real-life-org/real-life-stack` zeigt, heißt nicht, dass der Nutzer dorthin pushen darf — die meisten Beitragenden dürfen das nicht. Frag die Berechtigung ab, statt sie anzunehmen:
+
+```bash
+gh repo view real-life-org/real-life-stack --json viewerPermission --jq .viewerPermission
+```
+
+`ADMIN`, `MAINTAIN` oder `WRITE` heißt: direkter Branch reicht. Alles andere (`READ`, `TRIAGE`, leer) heißt: **es braucht einen Fork**, sonst scheitert erst der Push ganz am Ende — nach der gesamten Arbeit. Fehlt ein Fork, leg ihn vor dem Worktree an (`gh repo fork real-life-org/real-life-stack --remote=false`) und trag ihn als `pushRemote` ein.
 
 | Lage | Basis für den Branch | Push nach | `--head` für `gh` |
 |---|---|---|---|
-| Direkter Zugriff (`origin` = real-life-org) | `origin/master` | `origin` | `modul/garden-planner` |
-| Fork (`origin` = eigener Fork, `upstream` = real-life-org) | `upstream/master` | `origin` | `timo:modul/garden-planner` |
+| Schreibrecht auf real-life-org | `<upstream>/master` | derselbe Remote | `modul/garden-planner` |
+| Nur Leserecht → Fork | `<upstream>/master` | Fork-Remote | `timo:modul/garden-planner` |
 
 Zeigt **kein** Remote auf `real-life-org/real-life-stack`, frag nach — dann fehlt entweder der Upstream oder es ist ein anderes Projekt. Nicht raten.
 
@@ -247,6 +255,8 @@ Ablageorte, Regeln und Checks stehen in `reference/implementierung.md` — lies 
 
 Kurz: TDD, Schema-Library → `data-interface` (UI-frei) → `toolkit` (alles Wiederverwendbare, mit Storybook-Story) → `apps/reference` (nur Komposition). Kein `if (type === …)` in Modul-Code, Karten immer aus `ItemPreview`, unbekannte Typen brechen nie, jede Capability ist optional.
 
+Sobald die Check-Kette grün durchläuft: `phase: implementiert` ins Manifest.
+
 ## Phase 7 — Testen lassen
 
 Erst die Checks aus `reference/implementierung.md`, dann der Mensch:
@@ -259,6 +269,8 @@ pnpm -C /worktree/aus/dem/manifest storybook        # Komponenten isoliert, Port
 Läuft schon ein Dev-Server (`ss -ltnp | grep -E '517[0-9]|6006'`), nimm einen anderen Port statt den fremden Prozess zu stören — der Worktree ist ein eigenes Verzeichnis, beide können parallel laufen.
 
 Sag konkret, **was der Nutzer anklicken soll** und **was er sehen müsste**: Modul öffnen, Item anlegen, Item bearbeiten, Filter, Detail-Panel, leerer Zustand, Space ohne das Modul, unbekannter Item-Typ. Feedback einarbeiten und erneut vorlegen. Die Schleife läuft, bis **der Nutzer** zufrieden ist — nicht bis du es bist.
+
+Sagt er, dass es passt: `phase: getestet` ins Manifest. Das ist die Zufriedenheit mit dem Ergebnis — **nicht** die Freigabe zum Veröffentlichen, die kommt in Phase 8 getrennt.
 
 ## Phase 8 — Veröffentlichen
 
