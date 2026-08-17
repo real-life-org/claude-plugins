@@ -9,8 +9,17 @@
 
 set -uo pipefail
 
-# Ein Pfad ist nur dann der Stack, wenn diese Marker da sind.
-is_repo() { [ -f "$1/packages/data-interface/src/vocab.ts" ] && [ -d "$1/docs/spec" ]; }
+# Ein Pfad ist nur dann DER Stack, wenn alle Marker stimmen. Die Namenspruefung
+# unterscheidet ihn von einem beliebigen anderen pnpm-Monorepo.
+is_repo() {
+  [ -d "$1" ] || return 1
+  [ -f "$1/packages/data-interface/src/vocab.ts" ] || return 1
+  [ -d "$1/packages/toolkit/src" ] || return 1
+  [ -d "$1/docs/spec" ] || return 1
+  [ -f "$1/package.json" ] || return 1
+  grep -q '"name": *"real-life-stack"' "$1/package.json" 2>/dev/null || return 1
+  return 0
+}
 
 find_repo() {
   if [ $# -ge 1 ] && [ -n "${1:-}" ]; then echo "$1"; return; fi
@@ -38,11 +47,16 @@ fi
 # als "nichts vorhanden".
 if ! is_repo "$REPO"; then
   echo "FEHLER: '$REPO' ist kein real-life-stack." >&2
-  echo "Erwartet: packages/data-interface/src/vocab.ts und docs/spec/" >&2
+  echo "Erwartet: package.json mit name real-life-stack, packages/data-interface/src/vocab.ts," >&2
+  echo "          packages/toolkit/src/ und docs/spec/" >&2
   echo "Falls das Repo fehlt: git clone https://github.com/real-life-org/real-life-stack.git" >&2
   exit 2
 fi
 cd "$REPO" || exit 1
+# Absoluter, aufgeloester Pfad — den merkt sich der Skill fuer ALLE weiteren
+# Befehle, damit spaetere Reads, Edits, pnpm- und git-Aufrufe nicht in einem
+# anderen Checkout landen.
+REPO=$(pwd -P)
 
 h() { printf '\n== %s ==\n' "$1"; }
 
@@ -104,3 +118,6 @@ h "Connectoren"
 ls packages/ 2>/dev/null | grep connector | tr '\n' ' '; echo
 
 printf '\nLies vor jedem Vorschlag mindestens: docs/spec/06-schema-composition.md,\ndocs/spec/01-app-composition.md, docs/spec/modules/template.md,\ndocs/spec/modules/shared-components.md\n'
+
+# Merksatz fuer den Skill: ab hier laeuft jeder Befehl gegen genau diesen Pfad.
+printf '\n== Verifizierter Repo-Pfad — ab jetzt fuer JEDEN Befehl verwenden ==\nRLS_REPO=%s\n' "$REPO"

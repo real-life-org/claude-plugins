@@ -7,7 +7,7 @@ description: >
   Dev-Server-Test und PR. Nutze diesen Skill, wenn jemand sagt "ich hätte
   gern ein Modul für X", "neue Linse", "eigene Ansicht im RLS", "neuer
   Item-Typ", "neues Vokabular" oder ähnlich.
-allowed-tools: [Bash, Read, Write, Edit, Grep, Glob, WebFetch]
+allowed-tools: [Read, Grep, Glob]
 ---
 
 # RLS-Modul bauen
@@ -33,19 +33,41 @@ Mitgeliefertes Material in diesem Skill-Verzeichnis (unter `${CLAUDE_PLUGIN_ROOT
 - `reference/bestand.md` — Landkarte Bedarf → vorhandener Baustein
 - `reference/grenzen.md` — was der Stack nicht trägt, plus Verkleinerungs-Muster
 
+## Zwei Dinge, die der Skill nicht vorab freigibt
+
+**Shell-Befehle laufen durch die normale Rückfrage.** Das Frontmatter gibt bewusst nur `Read`, `Grep` und `Glob` frei. Alles, was schreibt oder ausführt — `Bash`, `Write`, `Edit` — geht durch den regulären Genehmigungsweg. Das ist Absicht: dieser Skill baut fremden Code und erzeugt am Ende einen PR.
+
+**Push und PR-Erstellung fragst du zusätzlich ausdrücklich.** Sie wirken nach außen und sind nicht ohne Weiteres zurückzunehmen. Auch wenn der Nutzer mit dem Modul zufrieden ist, ist das noch **keine** Freigabe zum Veröffentlichen — hol sie als eigene Frage ein (Phase 7).
+
+## Der Repo-Pfad wird einmal bestimmt und dann festgehalten
+
+Sobald `inventur.sh` einen Pfad verifiziert hat, gibt es genau **einen** gültigen Arbeitsort. Merk ihn dir als `RLS_REPO` (das Skript gibt ihn am Ende als `RLS_REPO=…` aus) und benutz ihn in **jedem** weiteren Befehl explizit:
+
+```bash
+RLS_REPO=/verifizierter/pfad/aus/der/inventur     # einmal setzen
+
+git -C "$RLS_REPO" status                          # git immer mit -C
+pnpm -C "$RLS_REPO" test                           # pnpm immer mit -C
+sed -n '1,80p' "$RLS_REPO/docs/spec/06-schema-composition.md"
+```
+
+Verlass dich **nie** auf ein Arbeitsverzeichnis: Jede Shell-Zelle kann woanders starten, und auf dieser Maschine liegen oft mehrere Checkouts und Worktrees desselben Projekts nebeneinander. Ein `pnpm test` oder `git checkout` im falschen Checkout trifft fremde Arbeit. Auch Datei-Lesen und -Schreiben laufen über den vollen Pfad unter `$RLS_REPO`.
+
 ## Phase 0 — Repo finden und Inventur ableiten
 
 **Pflicht, bevor du irgendetwas vorschlägst.** Handlisten driften lautlos; leite den Bestand jedes Mal frisch aus dem Repo ab.
 
 ```bash
-# Repo finden (Default-Branch: master). Falls es nicht lokal liegt:
-#   git clone https://github.com/real-life-org/real-life-stack.git
-ls ~/workspace/workspace/real-life-stack 2>/dev/null || \
-  find ~ -maxdepth 4 -type d -name real-life-stack 2>/dev/null | head
+# 1. Repo finden (Default-Branch: master). Falls es nicht lokal liegt:
+#    git clone https://github.com/real-life-org/real-life-stack.git
+find ~ -maxdepth 4 -type d -name real-life-stack 2>/dev/null | head
 
-# Inventur (Skript aus diesem Skill, Repo-Pfad als Argument)
-"${CLAUDE_PLUGIN_ROOT}"/skills/rls-modul/scripts/inventur.sh <pfad-zum-repo>
+# 2. Inventur. Das Skript prueft den Pfad und bricht mit Exit 2 ab,
+#    wenn dort nicht wirklich der Stack liegt.
+"$CLAUDE_PLUGIN_ROOT/skills/rls-modul/scripts/inventur.sh" "$RLS_REPO"
 ```
+
+Setz `RLS_REPO` vorher auf den gefundenen Pfad. Findet `find` mehrere Treffer — auf Entwicklungsmaschinen liegen oft Worktrees und Fix-Checkouts nebeneinander — dann **frag den Nutzer, welcher gemeint ist**, statt den ersten zu nehmen. Läuft das Skript mit Exit 2, ist der Pfad falsch: nicht weiterarbeiten, sondern klären.
 
 Lies danach `reference/bestand.md` und `reference/grenzen.md` aus diesem Skill — sie ordnen die Skript-Ausgabe ein. Bei Widerspruch gilt das Skript.
 
@@ -155,6 +177,19 @@ Die letzten beiden Zeilen sind Pflicht. Wenn die Liste der neuen Komponenten lä
 
 ## Phase 5 — Implementieren (TDD)
 
+**Zuerst der Branch, dann die erste Datei.** Bevor du irgendetwas schreibst, sorg dafür, dass die Arbeit auf einem eigenen Branch landet — nicht auf `master` und nicht auf dem, was gerade zufällig ausgecheckt ist:
+
+```bash
+git -C "$RLS_REPO" status                # liegt schon fremde Arbeit im Worktree?
+git -C "$RLS_REPO" branch --show-current
+
+MODUL=mein-modul                         # kurzer kebab-case Name des Moduls
+git -C "$RLS_REPO" fetch origin
+git -C "$RLS_REPO" checkout -b "modul/$MODUL" origin/master
+```
+
+Liegen bereits uncommittete fremde Änderungen im Worktree: **nicht überschreiben und nicht mitnehmen** — ansprechen und klären. Der Wechsel könnte auch einen laufenden Dev-Server unter den Füßen wegziehen (siehe Phase 6).
+
 **Test zuerst, dann Implementierung.** Kein Quick Fix, keine Workarounds an der Infrastruktur vorbei.
 
 **a) Schema-Library** (`docs/spec/schemas/vocab/<name>/v1/`)
@@ -196,10 +231,10 @@ Laufend gegen diese Regeln prüfen:
 Erst die Checks, dann der Mensch.
 
 ```bash
-pnpm build:toolkit    # zuerst: Node-Konsumenten (Tests) lesen dist, nicht src
-pnpm test
-pnpm build
-git diff --check
+pnpm -C "$RLS_REPO" build:toolkit    # zuerst: Tests lesen dist, nicht src
+pnpm -C "$RLS_REPO" test
+pnpm -C "$RLS_REPO" build
+git -C "$RLS_REPO" diff --check
 ```
 
 Fallstrick: die Vite-Apps lösen `@real-life-stack/toolkit` auf **src** auf, Node und Vitest auf **dist**. Grüner Dev-Server bei roten Tests heißt meistens: `dist` ist stale → `pnpm build:toolkit`.
@@ -207,8 +242,8 @@ Fallstrick: die Vite-Apps lösen `@real-life-stack/toolkit` auf **src** auf, Nod
 Dann den Nutzer klicken lassen:
 
 ```bash
-pnpm dev:reference    # Reference-App, Vite
-pnpm storybook        # Komponenten isoliert, Port 6006
+pnpm -C "$RLS_REPO" dev:reference    # Reference-App, Vite
+pnpm -C "$RLS_REPO" storybook        # Komponenten isoliert, Port 6006
 ```
 
 - **Vorher prüfen, ob schon ein Dev-Server auf dem Repo läuft** (`ss -ltnp | grep -E '517[0-9]|6006'`). Wenn ja: keinen Branch-Wechsel und kein `pnpm install` unter dem laufenden Server durchziehen — erst abstimmen.
@@ -217,23 +252,29 @@ pnpm storybook        # Komponenten isoliert, Port 6006
 
 ## Phase 7 — PR
 
-Erst wenn der Nutzer ausdrücklich zufrieden ist:
+Der Branch steht seit Phase 5. Jetzt fehlen Commit, Push und PR — und **Push und PR brauchen eine eigene, ausdrückliche Freigabe.** „Das Modul gefällt mir" ist Zustimmung zum Ergebnis, nicht zum Veröffentlichen. Frag in einem Satz, zeig vorher, was genau rausgeht:
 
 ```bash
-git status                          # erst schauen: was liegt im Worktree?
-git branch --show-current           # und auf welchem Branch stehst du?
+git -C "$RLS_REPO" status            # was liegt im Worktree?
+git -C "$RLS_REPO" diff --stat       # was davon gehoert zum Modul?
 
-# Vom aktuellen master abzweigen, NICHT vom irgendwo stehenden Arbeitsstand:
-git fetch origin && git checkout -b modul/<modul-name> origin/master
+# Gezielt stagen — Datei fuer Datei, nie `git add -A`:
+git -C "$RLS_REPO" add packages/data-interface/src/vocab.ts
+git -C "$RLS_REPO" add docs/spec/modules/mein-modul.md
+# … usw.
 
-git add <die-dateien-des-moduls>    # gezielt, nie `git add -A`
-git commit                          # aussagekräftige Message, kein --no-verify
-git push -u origin modul/<modul-name>
+git -C "$RLS_REPO" commit            # aussagekraeftige Message, kein --no-verify
+```
+
+Danach — **erst nach der Freigabe** — veröffentlichen:
+
+```bash
+git -C "$RLS_REPO" push -u origin "modul/$MODUL"
 gh pr create --repo real-life-org/real-life-stack --base master
 ```
 
 - **Nie auf `master` pushen.** Immer Branch + PR.
-- **Nie `git add -A`** und nie vom beliebigen Ausgangsstand branchen. Beides veröffentlicht sonst fremde Änderungen, die zufällig im Worktree lagen — im schlimmsten Fall lokale Konfigurationen oder halbfertige Arbeit von jemand anderem. Stage die Dateien, die zum Modul gehören, einzeln.
+- **Nie `git add -A`.** Das veröffentlicht sonst fremde Änderungen, die zufällig im Worktree lagen — lokale Konfigurationen, halbfertige Arbeit von jemand anderem. Stage die Dateien des Moduls einzeln; wenn du unsicher bist, ob eine dazugehört, gehört sie nicht dazu.
 - Lagen vorher schon fremde Änderungen im Worktree: **nicht mitnehmen**, sondern ansprechen. `git stash` ist eine Option, aber nur mit Wissen des Nutzers.
 - **Ein PR pro Modul** (maximal zwei, wenn Spec und Implementierung sinnvoll trennbar sind). Nicht in fünf Häppchen zerlegen.
 - Wer keine Push-Rechte auf `real-life-org/real-life-stack` hat, arbeitet über einen Fork (`gh repo fork`) und stellt den PR von dort.
@@ -258,4 +299,7 @@ Danach: Link zum PR an den Nutzer, und deutlich sagen, dass Anton reviewt.
 - Wiederverwendbare UI in die App statt ins Toolkit legen
 - `type` für Modul-Aktivierung benutzen
 - Auf `master` pushen, `--no-verify` benutzen, oder einen PR mergen
+- Pushen oder einen PR erstellen, ohne dass der Nutzer genau das freigegeben hat
+- Einen Befehl ohne `-C "$RLS_REPO"` bzw. ohne vollen Pfad absetzen — es gibt oft mehrere Checkouts
+- Mit der Implementierung anfangen, bevor der Branch steht
 - Spec-relevante Änderungen (`docs/spec/`, Schemas, Connector-Verträge) selbst durchwinken
