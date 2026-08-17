@@ -52,7 +52,7 @@ upstreamRemote: upstream        # Remote, der auf real-life-org zeigt (Basis + P
 pushPlan: fork                  # direkt | fork — aus viewerPermission, Phase 4
 pushRemote:                     # leer bis Phase 8; bei pushPlan=direkt = upstreamRemote
 prHead:                         # leer bis Phase 8; bei Fork mit owner:-Praefix
-devServerPid:                   # nur waehrend Phase 7 gesetzt, danach beendet + entfernt
+devServerHandle:                # PID oder Task-Kennung; nur waehrend Phase 7 gesetzt
 devServerLog:                   # Pfad der Logdatei, gleiche Lebensdauer
 phase: spec-freigegeben
 scope: Beete anlegen, Pflanzungen eintragen, Gießplan sehen
@@ -89,7 +89,7 @@ Findest du ein Manifest zum Thema des Nutzers, steig dort ein statt von vorn anz
 2. Steht dort noch `branch:`? (`git -C /worktree branch --show-current`) Weicht es ab, hat jemand von Hand eingegriffen: **fragen**, nicht korrigieren.
 3. Ist `phase:` einer der Werte oben? Fehlt er oder ist er unbekannt, ist das Manifest kaputt — nicht raten, sondern den Stand mit dem Nutzer klären.
 4. Passt die Phase zum tatsächlichen Zustand? Steht `implementiert`, liegen aber keine Änderungen im Worktree (`git -C /worktree status --short`), stimmt etwas nicht — ansprechen.
-5. Steht ein `devServerPid` drin, läuft der Prozess noch (`kill -0` mit der PID)? Wenn nicht, ist es eine Leiche aus einer früheren Sitzung: Feld entfernen. Wenn doch, den laufenden Server benutzen statt einen zweiten zu starten.
+5. Steht ein `devServerHandle` drin, läuft der Server noch? Wenn nicht, ist es eine Leiche aus einer früheren Sitzung: Feld entfernen. Wenn doch, den laufenden Server benutzen statt einen zweiten zu starten.
 
 Erst wenn alle fünf stimmen, arbeite bei „nächster Schritt" der Tabelle weiter. **Ein Tor gilt nur als durchschritten, wenn das Manifest es sagt** — nicht, weil es im Gespräch mal vorkam. Bereits erteilte Freigaben werden nicht erneut eingeholt, aber auch nicht angenommen.
 
@@ -107,6 +107,14 @@ find ~ -maxdepth 4 -type d -name real-life-stack 2>/dev/null | head
 ```
 
 Mehrere Treffer — Worktrees, Fix-Checkouts — sind normal: **frag, welcher gemeint ist**, statt den ersten zu nehmen.
+
+**Prüf, ob im Checkout überhaupt geschrieben werden kann**, bevor du Zeit in ihn investierst:
+
+```bash
+touch /gefundener/pfad/.git/rls-writetest && rm /gefundener/pfad/.git/rls-writetest && echo "beschreibbar"
+```
+
+Schlägt das fehl (`Permission denied`, `unable to unlink`), ist der Checkout beschädigt — auf Windows meist durch Synchronisierungsdienste oder Virenscanner. **Geh dann nicht in die Ursachensuche**, sondern frag, ob frisch in einen Nachbarordner geklont werden soll; der alte bleibt unberührt. Das kostet dreißig Sekunden statt einer Stunde.
 
 Ist gar keine Kopie da, **klon nicht von dir aus**. Ein Clone legt einige hundert Megabyte an, und wohin, entscheidet der Nutzer. Frag, ob geklont werden soll und in welches Verzeichnis, und nenn den Befehl (`git clone https://github.com/real-life-org/real-life-stack.git`). Das ist die einzige Schreibhandlung vor dem Plan-Tor — sie ist die Voraussetzung dafür, überhaupt etwas beurteilen zu können, und deshalb an die ausdrückliche Zustimmung des Nutzers gebunden.
 
@@ -276,6 +284,17 @@ Ablageorte, Regeln und Checks stehen in `reference/implementierung.md` — lies 
 
 Kurz: TDD, Schema-Library → `data-interface` (UI-frei) → `toolkit` (alles Wiederverwendbare, mit Storybook-Story) → `apps/reference` (nur Komposition). Kein `if (type === …)` in Modul-Code, Karten immer aus `ItemPreview`, unbekannte Typen brechen nie, jede Capability ist optional.
 
+### Selbstprüfung, bevor du vorlegst
+
+Vier Fragen, die die häufigsten Lücken einer ersten Version fangen. Sie kosten eine Minute und sparen eine Testrunde:
+
+1. Sind die **in der Spec versprochenen** Sortier- und Filteroptionen wirklich implementiert — oder stehen sie nur dort?
+2. Wird der Composer beim **Bearbeiten** eines bestehenden Items mit *allen* Feldern deines Moduls vorbelegt, auch den eigenen?
+3. Verwaltet dein Modul Menschen, Orte oder Dinge? Dann ist ein **Bild** fast immer erwartet.
+4. Ist der **Löschweg** vom Detail-Panel aus erreichbar?
+
+Ein „nein" ist kein Fehler — aber es gehört entschieden und, wenn es so bleibt, unter „Nicht-Ziele" in die Spec statt still zu fehlen.
+
 Sobald die Check-Kette grün durchläuft: `phase: implementiert` ins Manifest.
 
 ## Phase 7 — Testen lassen
@@ -288,17 +307,17 @@ Beide Server laufen, bis man sie abbricht. Starte nur den, den der Nutzer gerade
 # Beispiel-Manifest: worktree=/home/x/code/rls-garden-planner
 cd /home/x/code/rls-garden-planner && \
   nohup pnpm dev:reference > /tmp/rls-garden-planner-dev.log 2>&1 &
-echo "devServerPid: $!"        # ins Manifest eintragen
+echo "devServerHandle: $!"     # ins Manifest eintragen
 sleep 5 && grep -m1 "Local:" /tmp/rls-garden-planner-dev.log   # tatsaechlicher Port
 ```
 
 Storybook nur, wenn es zusätzlich wirklich gebraucht wird, als **eigener** Aufruf nach demselben Muster (`pnpm storybook`, eigene Logdatei, eigene PID).
 
-Ins Manifest gehören `devServerPid` und der Pfad der Logdatei. Ohne das weiß ein späterer Aufruf nicht, was er gestartet hat, und der Prozess bleibt nach Sitzungsende hängen.
+Ins Manifest gehören `devServerHandle` und der Pfad der Logdatei. Der Handle muss keine Betriebssystem-PID sein — wenn dein Werkzeug Hintergrundaufgaben selbst verwaltet (und auf Windows tut es das), trag dessen Kennung ein und beende darüber. Ohne das weiß ein späterer Aufruf nicht, was er gestartet hat, und der Prozess bleibt nach Sitzungsende hängen.
 
 Läuft schon ein Dev-Server (`ss -ltnp | grep -E '517[0-9]|6006'`), stör den fremden Prozess nicht — Vite nimmt selbst den nächsten freien Port, der Worktree ist ein eigenes Verzeichnis. **Nenn dem Nutzer den Port aus der Logdatei**, nicht den erwarteten.
 
-Wenn der Nutzer fertig ist, den Server mit `kill` und der PID aus dem Manifest beenden, beide Felder entfernen und die Logdatei aufräumen — spätestens bevor du in Phase 8 gehst.
+Wenn der Nutzer fertig ist, den Server über den Handle aus dem Manifest beenden, beide Felder entfernen und die Logdatei aufräumen — spätestens bevor du in Phase 8 gehst.
 
 Sag konkret, **was der Nutzer anklicken soll** und **was er sehen müsste**: Modul öffnen, Item anlegen, Item bearbeiten, Filter, Detail-Panel, leerer Zustand, Space ohne das Modul, unbekannter Item-Typ. Feedback einarbeiten und erneut vorlegen. Die Schleife läuft, bis **der Nutzer** zufrieden ist — nicht bis du es bist.
 
