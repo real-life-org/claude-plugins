@@ -93,8 +93,26 @@ nicht im PATH. Setz den PATH und ruf die Inventur erneut auf, statt der
 Ersatz-Inventur unten zu vertrauen.
 WARN
 elif [ -f "scripts/inventory.mjs" ]; then
+  # Nicht nur "ist JSON": {} und [] sind gueltiges JSON und waeren eine LEERE
+  # Inventur — der Skill wuerde daraus "es gibt nichts" lesen und alles neu
+  # bauen. Verlangt wird ein Objekt mit mehreren Abschnitten, von denen
+  # mindestens einer wirklich etwas enthaelt. Wenn scripts/inventory.mjs im
+  # Repo eingefuehrt wird, gehoert der Vertrag dort verbindlich festgelegt.
   if out=$(node scripts/inventory.mjs --json 2>/dev/null) \
-     && printf '%s' "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const o=JSON.parse(s);process.exit(o&&typeof o==="object"?0:1)}catch{process.exit(1)}})'; then
+     && printf '%s' "$out" | node -e '
+let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
+  let o; try { o = JSON.parse(s) } catch { process.exit(1) }
+  if (!o || typeof o !== "object" || Array.isArray(o)) process.exit(1)
+  const keys = Object.keys(o)
+  if (keys.length < 3) process.exit(1)
+  const gefuellt = keys.some(k => {
+    const v = o[k]
+    if (Array.isArray(v)) return v.length > 0
+    if (v && typeof v === "object") return Object.keys(v).length > 0
+    return typeof v === "string" && v.length > 0
+  })
+  process.exit(gefuellt ? 0 : 1)
+})'; then
     echo "Inventur aus dem Repo (scripts/inventory.mjs) — verifizierter Pfad: $REPO"
     printf '%s\n' "$out"
     # Auch hier noetig: das Repo-Skript kennt den Bestand, aber nicht die
@@ -108,7 +126,8 @@ elif [ -f "scripts/inventory.mjs" ]; then
   # normale, vollstaendige Inventur aussehen.
   cat <<'WARN'
 !! WARNUNG — INVENTUR DEGRADIERT !!
-scripts/inventory.mjs ist vorhanden, liefert aber kein gueltiges JSON.
+scripts/inventory.mjs ist vorhanden, liefert aber keine brauchbare Inventur
+(kein gueltiges JSON, oder ein leeres bzw. inhaltsloses Objekt).
 Was unten folgt, ist die abgeleitete Ersatz-Inventur: sie liest per grep und
 kann mehrzeilige Deklarationen und neuere Strukturen uebersehen. Fehlende
 Abschnitte bedeuten hier NICHT "nichts vorhanden".

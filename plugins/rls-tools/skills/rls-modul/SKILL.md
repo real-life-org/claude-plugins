@@ -49,8 +49,9 @@ repo: /home/x/code/real-life-stack                    # verifizierter Haupt-Chec
 worktree: /home/x/code/real-life-stack-garden-planner # hier wird gearbeitet
 branch: modul/garden-planner
 upstreamRemote: upstream        # Remote, der auf real-life-org zeigt (Basis + PR-Ziel)
-pushRemote: origin              # wohin gepusst wird (bei Fork: der Fork)
-prHead: timo:modul/garden-planner   # --head fuer gh; ohne Fork nur der Branchname
+pushPlan: fork                  # direkt | fork — aus viewerPermission, Phase 4
+pushRemote:                     # leer bis Phase 8; bei pushPlan=direkt = upstreamRemote
+prHead:                         # leer bis Phase 8; bei Fork mit owner:-Praefix
 phase: spec-freigegeben
 scope: Beete anlegen, Pflanzungen eintragen, Gießplan sehen
 nonGoals: keine Ertragsstatistik, keine Erinnerungen, kein Wetterdienst
@@ -211,12 +212,14 @@ Und: **eine Remote-URL sagt nichts über Schreibrechte.** Dass `origin` auf `rea
 gh repo view real-life-org/real-life-stack --json viewerPermission --jq .viewerPermission
 ```
 
-`ADMIN`, `MAINTAIN` oder `WRITE` heißt: direkter Branch reicht. Alles andere (`READ`, `TRIAGE`, leer) heißt: **es braucht einen Fork**, sonst scheitert erst der Push ganz am Ende — nach der gesamten Arbeit. Fehlt ein Fork, leg ihn vor dem Worktree an (`gh repo fork real-life-org/real-life-stack --remote=false`) und trag ihn als `pushRemote` ein.
+`ADMIN`, `MAINTAIN` oder `WRITE` heißt: direkt auf einen Branch im Zielrepo. Alles andere (`READ`, `TRIAGE`, leer) heißt: es wird ein **Fork** gebraucht. Das jetzt zu wissen ist wichtig, weil der Push sonst erst ganz am Ende scheitert — nach der gesamten Arbeit.
 
-| Lage | Basis für den Branch | Push nach | `--head` für `gh` |
+**Den Fork jetzt aber nicht anlegen.** Ein Fork ist ein öffentlich sichtbares Repo unter dem Namen des Nutzers; ihn hier zu erzeugen wäre eine Außenwirkung vor dem Veröffentlichungstor. Es wird nur **festgehalten**, was in Phase 8 zu tun ist:
+
+| `viewerPermission` | `pushPlan` im Manifest | Basis für den Branch | In Phase 8 |
 |---|---|---|---|
-| Schreibrecht auf real-life-org | `<upstream>/master` | derselbe Remote | `modul/garden-planner` |
-| Nur Leserecht → Fork | `<upstream>/master` | Fork-Remote | `timo:modul/garden-planner` |
+| `ADMIN` / `MAINTAIN` / `WRITE` | `direkt` | `<upstream>/master` | Push nach `<upstream>`, `--head modul/garden-planner` |
+| alles andere | `fork` | `<upstream>/master` | Fork anlegen, Remote setzen, Push dorthin, `--head owner:modul/garden-planner` |
 
 Zeigt **kein** Remote auf `real-life-org/real-life-stack`, frag nach — dann fehlt entweder der Upstream oder es ist ein anderes Projekt. Nicht raten.
 
@@ -233,7 +236,7 @@ pnpm -C /pfad/zum/haupt-checkout-garden-planner install
 
 Der Haupt-Checkout wird dabei **nicht angefasst**: kein Branch-Wechsel, kein Stash, kein `install`. Das `install` im frischen Worktree dauert einen Moment — sag dem Nutzer, dass das normal ist.
 
-Danach das Manifest unter `~/.rls-modul/<modul>.yml` anlegen (Felder siehe oben), inklusive `upstreamRemote`, `pushRemote` und `prHead`, mit `phase: plan-freigegeben`. **Ab jetzt kommt jeder Pfad und jeder Remote aus dieser Datei.**
+Danach das Manifest unter `~/.rls-modul/<modul>.yml` anlegen (Felder siehe oben) mit `upstreamRemote`, `pushPlan` und `phase: plan-freigegeben`. `pushRemote` und `prHead` bleiben leer — sie werden in Phase 8 gefüllt, wenn feststeht, wohin tatsächlich gepusht wird. **Ab jetzt kommt jeder Pfad und jeder Remote aus dieser Datei.**
 
 Ist `git worktree` nicht nutzbar (kein Git-Repo, alte Version), sag es und arbeite ersatzweise auf einem frischen Branch aus `origin/master` — dann aber erst nach `git status` und ausdrücklicher Zustimmung, weil das den Checkout des Nutzers verändert.
 
@@ -287,10 +290,22 @@ git -C /worktree/aus/dem/manifest add packages/data-interface/src/vocab.ts
 git -C /worktree/aus/dem/manifest commit    # kein --no-verify
 ```
 
-Nach der Freigabe — Remote und `--head` kommen aus dem Manifest (`pushRemote`, `prHead`):
+**Erst nach der Freigabe** wird irgendetwas nach außen gegeben — auch der Fork. Was zu tun ist, steht als `pushPlan` im Manifest.
+
+Bei `pushPlan: fork` zuerst den Fork anlegen und als Remote eintragen. `gh repo fork` legt ohne weiteres Zutun **keinen** Remote im Worktree an, der Remote muss also gesetzt werden:
 
 ```bash
-git -C /worktree/aus/dem/manifest push -u origin modul/garden-planner
+gh repo fork real-life-org/real-life-stack --clone=false --remote=false
+# Der Fork liegt unter <owner>/real-life-stack — <owner> = `gh api user --jq .login`
+git -C /worktree/aus/dem/manifest remote add fork git@github.com:timo/real-life-stack.git
+```
+
+Dann `pushRemote: fork` und `prHead: timo:modul/garden-planner` ins Manifest schreiben. Bei `pushPlan: direkt` sind es stattdessen `pushRemote: <upstreamRemote>` und `prHead: modul/garden-planner`.
+
+Jetzt pushen und den PR öffnen — **beide Werte aus dem Manifest**, nichts fest verdrahtet:
+
+```bash
+git -C /worktree/aus/dem/manifest push -u fork modul/garden-planner
 
 gh pr create \
   --repo real-life-org/real-life-stack \
@@ -299,7 +314,7 @@ gh pr create \
   --title "…" --body "…"
 ```
 
-`--repo` **und** `--head` sind Pflicht: ohne `--head` rät `gh` den Branch aus dem Arbeitsverzeichnis, das hier nicht der Worktree ist. Beim Fork-Workflow trägt `--head` zusätzlich das `owner:`-Präfix, sonst sucht `gh` den Branch im Zielrepo, wo er nicht liegt.
+`--repo` **und** `--head` sind Pflicht: ohne `--head` rät `gh` den Branch aus dem Arbeitsverzeichnis, das hier nicht der Worktree ist. Beim Fork trägt `--head` das `owner:`-Präfix, sonst sucht `gh` den Branch im Zielrepo, wo er nicht liegt.
 
 Danach `phase: veroeffentlicht` ins Manifest.
 
