@@ -74,6 +74,6 @@ Wenn ein Wunsch zu groß ist, führ das Gespräch entlang dieser Fragen:
 2. **Geht es auch mit einem vorhandenen Typ plus einem Feld mehr?** Fast immer ja.
 3. **Braucht es eine eigene Ansicht, oder reicht eine Linse über vorhandene Items?** Eine Linse ist ein Bruchteil des Aufwands und bricht nichts.
 4. **Was passiert, wenn man es weglässt?** Wenn die Antwort „dann macht man es weiter von Hand" ist, ist es V2.
-5. **Wäre das ein eigener Space statt eines Moduls?** Trennung von Sichtbarkeit und Kontext löst überraschend viele vermeintliche Modul-Wünsche.
+5. **Ist der Kern des Wunsches in Wahrheit Sichtbarkeit?** Dann löst ihn ein eigener Space, kein Modul — das ist eine Feststellung, die du triffst, keine Frage, die du dem Nutzer stellst. Frag ihn nie, in welchem Space sein Modul laufen soll: Das Modul wird für den Stack gebaut, die Aktivierung entscheidet später jeder Space für sich.
 
 Ein gutes Ergebnis dieser Phase ist oft: **ein kleineres Modul als gewünscht, plus eine notierte Liste dessen, was bewusst nicht drin ist.** Diese Liste gehört in die Spec unter „Nicht-Ziele" und in den PR.

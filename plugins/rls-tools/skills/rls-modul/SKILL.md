@@ -143,6 +143,10 @@ Im Gespräch, in eigenen Worten, kurz und einladend. Kein Fragebogen, keine Ausw
 - **Was soll man tun können?**
 - **Wie viele Dinge** werden das realistisch, und **wie viele Menschen** nutzen es?
 
+**Frag nicht, in welchem Space das Modul laufen soll.** Die Frage hat beim Bauen keinen Nutzen: Ein Modul entsteht **für den Stack**, nicht für einen Space. Welche Spaces es später einschalten, ist Laufzeitkonfiguration (`Group.data.modules`) und wird von den Menschen im jeweiligen Space entschieden — lange nach diesem PR. Wer beim Entwurf einen bestimmten Space vor Augen hat, baut Annahmen ein, die in jedem anderen Space falsch sind.
+
+Ebenso wenig gehören Space-Name, Mitgliederzahl oder Gruppenstruktur zur Anforderung. Was zählt, ist die wiederkehrende Nutzung — die ist überall dieselbe, sonst ist das Modul falsch geschnitten.
+
 **Ist es überhaupt ein Modul?**
 
 | Wunsch | Das ist … |
@@ -150,7 +154,9 @@ Im Gespräch, in eigenen Worten, kurz und einladend. Kein Fragebogen, keine Ausw
 | Profile, Kontakte, Verifikation, Auth, Benachrichtigungen, Debug | eine **App-Shell-Fläche**, kein Space Module |
 | Eine andere Darstellung vorhandener Items | eine **Linse** (`components/lens/`) — Bruchteil des Aufwands |
 | Ein Baustein, der in mehreren Modulen vorkommt | eine **Module Component** im Toolkit |
-| Abgetrennte Sichtbarkeit für eine Teilgruppe | ein eigener **Space** |
+| „Nur diese Leute sollen das sehen" | keine Modul-Eigenschaft — Sichtbarkeit schneidet der **Space**, das Modul kennt sie nicht |
+
+Die letzte Zeile ist eine Struktur-Feststellung, kein Anlass zur Rückfrage nach Spaces: Wenn ein Wunsch in Wahrheit Sichtbarkeit meint, benenn das — und bau kein Sichtbarkeitsfeature ins Modul.
 
 Spiegele die Anforderung einmal in eigenen Worten zurück.
 
@@ -352,6 +358,7 @@ Danach: Link an den Nutzer, und deutlich sagen, dass Anton reviewt. Der Worktree
 
 ## Was du nie tust
 
+- Den Nutzer fragen, in welchem Space das Modul laufen soll — das entscheidet später jeder Space für sich, nicht dieser PR
 - Ein neues Vokabular, einen neuen Typ oder eine neue Komponente anlegen, ohne den Bestand geprüft und die Lücke benannt zu haben
 - Einen Wunsch durchbauen, der eine Grenze aus `reference/grenzen.md` überschreitet
 - Im Haupt-Checkout schreiben, dort den Branch wechseln oder dort `install` laufen lassen
