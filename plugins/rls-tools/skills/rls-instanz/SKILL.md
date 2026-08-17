@@ -72,24 +72,30 @@ gh release list --repo real-life-org/real-life-stack --limit 20 \
 
 Dann alles von genau diesem Tag holen (Beispiel: `app-v0.2.4`, Instanz nach `/home/x/code/unser-netzwerk`):
 
+**Erst vollständig holen, dann an Ort und Stelle bringen.** Direkt ins Zielverzeichnis zu laden ist nicht wiederholbar: Bricht der dritte Download ab, liegen dort schon `docker-compose.preview.yml` und `branding/` — und der nächste Lauf hält das für eine bestehende Instanz und arbeitet auf einer Ruine weiter.
+
 ```bash
-mkdir -p /home/x/code/unser-netzwerk/landing /home/x/code/unser-netzwerk/branding
-cd /home/x/code/unser-netzwerk
+ZIEL=/home/x/code/unser-netzwerk
+TMP=$(mktemp -d)
 BASE=https://raw.githubusercontent.com/real-life-org/real-life-stack/app-v0.2.4/deploy/app
-curl -fsSLO "$BASE/docker-compose.yml"
-curl -fsSLO "$BASE/docker-compose.preview.yml"
-curl -fsSL "$BASE/.env.example" -o .env
-curl -fsSL "$BASE/branding/theme.json" -o branding/theme.json
-curl -fsSL "$BASE/landing-default/index.html" -o landing/index.html
+
+mkdir -p "$TMP/landing" "$TMP/branding" && cd "$TMP" \
+  && curl -fsSLO "$BASE/docker-compose.yml" \
+  && curl -fsSLO "$BASE/docker-compose.preview.yml" \
+  && curl -fsSL "$BASE/.env.example" -o .env.example \
+  && curl -fsSL "$BASE/branding/theme.json" -o branding/theme.json \
+  && curl -fsSL "$BASE/landing-default/index.html" -o landing/index.html \
+  && cp .env.example .env \
+  && printf '\nRLS_IMAGE_TAG=0.2.4\n' >> .env \
+  && mkdir -p "$ZIEL" \
+  && cp -r "$TMP/." "$ZIEL/" \
+  && echo "Instanz angelegt aus app-v0.2.4"
+rm -rf "$TMP"
 ```
 
-Und **dieselbe** Version in die `.env`, als Erstes noch vor Domain und Name:
+Die `&&`-Kette ist der Punkt: Bricht irgendetwas ab, bleibt das Zielverzeichnis unangetastet, und der nächste Versuch fängt sauber an. `$TMP` wird in jedem Fall aufgeräumt.
 
-```
-RLS_IMAGE_TAG=0.2.4
-```
-
-Scheitert einer der Downloads, hör auf: Eine halb geholte Vorlage ist schlimmer als keine. Gibt es noch gar kein Release, gibt es auch kein Image — dann ist die Instanz noch nicht dran.
+Die **Version steht damit auch in der `.env`** — dieselbe, aus der die Vorlagen kommen. Gibt es noch gar kein Release, gibt es auch kein Image; dann ist die Instanz noch nicht dran, und du sagst das, statt etwas zusammenzustückeln.
 
 Liegt der Stack lokal, geht `cp` aus dessen `deploy/app/` **nur, wenn er auf demselben Release-Tag steht** (`git -C /pfad describe --tags`). Und **kopiere `docker-compose.build.yml` nicht mit**: Die Datei baut aus dem Monorepo und ergibt außerhalb davon keinen Sinn.
 
@@ -187,19 +193,21 @@ git -C /home/x/code/unser-netzwerk status --short
 git -C /home/x/code/unser-netzwerk diff --cached --name-only
 ```
 
-Ist dort Fremdes, **räum den Index leer** (`git restore --staged .`) und stage neu — oder frag, wenn unklar ist, ob es dazugehört.
+Ist dort Fremdes, **fass es nicht an**. `git restore --staged .` würde die vorbereitete Arbeit eines Menschen verwerfen, ohne dass er es merkt — und sie ist nirgends gesichert. Sag stattdessen, was du gefunden hast, und frag, ob es mit in den Commit soll oder ob der Nutzer es vorher selbst aus dem Index nimmt.
 
-Dann alles stagen, was zur Freigabe gehört — nicht nur die Textdateien. Ein Logo oder Favicon, das der Nutzer gutgeheißen hat, aber nicht mitcommittet wird, fehlt der Instanz später:
+Dann alles stagen, was die Instanz ausmacht. **Nicht nur Landingpage und Farben:** Ohne die compose-Dateien und `.env.example` kann niemand — auch der Nutzer selbst nicht auf einem anderen Rechner — die Instanz aus dem Repo wieder aufbauen. Genau das ist der Zweck des Repos.
 
 ```bash
-git -C /home/x/code/unser-netzwerk add landing branding
+git -C /home/x/code/unser-netzwerk add \
+  docker-compose.yml docker-compose.preview.yml .env.example \
+  landing branding
 git -C /home/x/code/unser-netzwerk diff --cached --name-only   # zeigen, bevor committet wird
 git -C /home/x/code/unser-netzwerk commit
 ```
 
-`landing` und `branding` sind die Verzeichnisse des Nutzers — dort liegt nur, was zur Instanz gehört. Trotzdem gilt: **nie `git add -A`** im Wurzelverzeichnis, und die Liste vorher zeigen.
+`landing` und `branding` sind die Verzeichnisse des Nutzers — dort liegt nur, was zur Instanz gehört. Trotzdem gilt: **nie `git add -A`**, und die Liste vorher zeigen.
 
-**Die `.env` gehört nicht in den Commit**, solange nicht geklärt ist, was darin steht: Heute sind es Domain, Name und Image-Tag, morgen ein Schlüssel. Wenn sie versioniert werden soll, dann bewusst und mit einem Blick hinein.
+**Die `.env` selbst gehört nicht in den Commit**, solange nicht geklärt ist, was darin steht: Heute sind es Domain, Name und Image-Tag, morgen ein Schlüssel. `.env.example` dagegen schon — sie dokumentiert, was gesetzt werden muss, ohne die Werte dieser Instanz preiszugeben. Leg einen `.gitignore`-Eintrag für `.env` an, wenn es noch keinen gibt.
 
 Ist das Verzeichnis noch kein Repo, frag, ob eines angelegt werden soll und wohin. Ein neues öffentliches Repo ist eine Außenwirkung, die dem Nutzer gehört.
 
