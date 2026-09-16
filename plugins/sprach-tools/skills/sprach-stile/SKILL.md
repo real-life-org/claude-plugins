@@ -1,6 +1,6 @@
 ---
 name: sprach-stile
-description: "Eine Stimme wählen und einen Text darin schreiben oder umschreiben: klar, kraftvoll, herzens-sprache, kindgerecht, tiefstapelei, groessenwahn, schamanisch, soziologen-sprech, marktschreier. Greift bei /sprach-stile <stil>, bei der Frage nach den Stilrichtungen, und wenn ein Text in einer bestimmten Stimme klingen soll."
+description: "Eine Stimme wählen und einen Text darin schreiben oder umschreiben: klar, klartext, kraftvoll, herzens-sprache, kindgerecht, tiefstapelei, groessenwahn, schamanisch, soziologen-sprech, marktschreier. Greift bei /sprach-stile <stil>, bei der Frage nach den Stilrichtungen, und wenn ein Text in einer bestimmten Stimme klingen soll."
 ---
 
 # Sprach-Stile
@@ -19,6 +19,7 @@ Ein Inhalt, viele Stimmen. Dieser Skill sammelt die Sprachformen des Real Life N
 | Stil-Id | Name | Klang | Vorbilder | Wann |
 |---------|------|-------|-----------|------|
 | `klar` | Klar | alltagstauglich, warm, leicht | Kant, Goethe, Schiller im Kern, Arne im Ton | Standard für alles, was aus dem Real Life Network in die Welt geht |
+| `klartext` | Klartext | modern, professionell, zugänglich | gute Produkttexte, Wirtschaftsteil, ein Kollege am Telefon | Erklärungen, Landingpages, Produkttexte, Anleitungen, FAQ, Mails: alles, was jemand liest, um etwas zu verstehen oder zu tun |
 | `kraftvolle-sprache` | Kraftvolle Sprache | klar, pathosfähig, imperativisch, tragend | Schiller, Goethe, Kant, Schweitzer | Manifest-Stücke, Grundsatz-Passagen, Titel mit Gewicht |
 | `herzens-sprache` | Herzens-Sprache | weich, atmend, einladend | Eckhart, Hildegard, Rumi, Rilke | Friedenstexte, Meditation, Willkommen, Einladung |
 | `kindgerecht` | Kindgerecht | warm, staunend, einfach | Sendung mit der Maus, logo!, Löwenzahn | Erklärungen für Kinder, einfache Sprache, Onboarding |
@@ -27,6 +28,8 @@ Ein Inhalt, viele Stimmen. Dieser Skill sammelt die Sprachformen des Real Life N
 | `schamanisch` | Schamanisch | zeremoniell, zyklisch, animistisch | Lakota, Hopi, Black Elk, Häuptling Seattle | Zeremonie, Ritual, Texte am Feuer |
 | `soziologen-sprech` | Soziologen-Sprech | theoriegesättigt, hypotaktisch, augenzwinkernd ernst | Habermas, Luhmann, Bourdieu | akademische Analyse, Zerrspiegel für Förderanträge |
 | `marktschreier` | Marktschreier | laut, theatralisch, direkt, herzlich | Hamburger Fischmarkt, Aale-Dieter | Werbetext, Aufmerksamkeit, Jahrmarkt |
+
+**Im Zweifel zwischen `klar` und `klartext`:** Geht es um das **Warum** (Haltung, Manifest, Einladung), nimm `klar`. Geht es um **Was und Wie** (Erklärung, Produkt, Anleitung), nimm `klartext`.
 
 Jede Stimme liegt unter `reference/<stil-id>.md`. **Vor dem Schreiben die Referenz der gewählten Stimme lesen**, danach schreiben, dann die Selbst-Prüfung am Ende der Referenz durchgehen.
 
@@ -48,6 +51,10 @@ Jede Stimme liegt unter `reference/<stil-id>.md`. **Vor dem Schreiben die Refere
 4. Schreiben. Absatz für Absatz, in der Stimme, mit ihrem Wortschatz-Anker.
 5. Selbst-Prüfung der Referenz durchgehen, dann die sieben Regeln oben.
 6. Bei Wörterbüchern (JSON mit Schlüsseln, wie `stile/<stil>.json` der trustdonation-Landing): exakt dieselben Schlüssel, gültiges JSON, dann mit einem Skript prüfen (Schlüsselmengen gleich, keine Striche, Tags gezählt).
+
+## Alle ansprechen
+
+Soll ein Text alle ansprechen, ohne jemanden vor den Kopf zu stoßen, greift zusätzlich der Skill `/gendern`. Er legt sich über jede Stimme und ersetzt sie nicht.
 
 ## Herkunft
 

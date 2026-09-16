@@ -39,8 +39,9 @@ claude plugin install sprach-tools@real-life-tools
 | Skill | Beschreibung |
 |-------|-------------|
 | `/sprach-tools:sprach-stile [stil] [text]` | Eine Stimme wählen und einen Text darin schreiben oder umschreiben. Ohne Angabe zeigt der Skill die Stilrichtungen und fragt |
+| `/sprach-tools:gendern [text]` | Texte so schreiben, dass sich alle angesprochen fühlen: neutral umformulieren, Doppelnennung, Sonderzeichen nur wenn der Empfänger es verlangt |
 
-Neun Stimmen, ein Inhalt: `klar` (Standard), `kraftvolle-sprache`, `herzens-sprache`, `kindgerecht`, `tiefstapelei`, `groessenwahn`, `schamanisch`, `soziologen-sprech`, `marktschreier`. Jede Stimme hat eine eigene Referenz mit Haltung, Regeln, Wortschatz und Beispielen; in allen gelten echte Umlaute, keine Gedankenstriche, Fakten bleiben wahr. Gewachsen aus `rln-alle-sprachformen.md`, dem Sprachexperiment von Timo und Anton; erste Anwendung ist die Landingpage `wir.ooo`, auf der Leser Sprache und Sprachstil selbst wählen.
+Zehn Stimmen, ein Inhalt: `klar` (Grundton), `klartext` (der Arbeitston: modern, professionell, zugänglich), `kraftvolle-sprache`, `herzens-sprache`, `kindgerecht`, `tiefstapelei`, `groessenwahn`, `schamanisch`, `soziologen-sprech`, `marktschreier`. Jede Stimme hat eine eigene Referenz mit Haltung, Regeln, Wortschatz und Beispielen; in allen gelten echte Umlaute, keine Gedankenstriche, Fakten bleiben wahr. Gewachsen aus `rln-alle-sprachformen.md`, dem Sprachexperiment von Timo und Anton; erste Anwendung ist die Landingpage `wir.ooo`, auf der Leser Sprache und Sprachstil selbst wählen.
 
 ## Hinweis zur Versionierung
 
