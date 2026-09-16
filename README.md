@@ -8,6 +8,7 @@ Claude Code Skills und Tools für das Real Life Team.
 claude plugin marketplace add real-life-org/claude-plugins
 claude plugin install rfc-tools@real-life-tools
 claude plugin install rls-tools@real-life-tools
+claude plugin install sprach-tools@real-life-tools
 ```
 
 ## Verfügbare Skills
@@ -32,6 +33,15 @@ claude plugin install rls-tools@real-life-tools
 `rls-instanz` richtet eine selbst gehostete Instanz ein: Die App kommt als fertiges Image, das Instanz-Repo enthält nur Konfiguration, Landingpage und Branding — kein Stack-Code, also kein Fork und kein Merge. Voraussetzung: Docker.
 
 `rls-modul` kennt den Bestand des Stacks (Vokabulare, Item-Typen, Toolkit-Komponenten, Hooks) und leitet ihn bei jedem Lauf frisch aus dem Repo ab, statt eine Liste zu pflegen, die veraltet. Er benutzt konsequent, was schon da ist, und begrenzt Wünsche, die die heutigen Kapazitäten des Stacks übersteigen. Voraussetzung: eine lokale Kopie von [`real-life-stack`](https://github.com/real-life-org/real-life-stack).
+
+### sprach-tools
+
+| Skill | Beschreibung |
+|-------|-------------|
+| `/sprach-tools:sprach-stile [stil] [text]` | Eine Stimme wählen und einen Text darin schreiben oder umschreiben. Ohne Angabe zeigt der Skill die Stilrichtungen und fragt |
+| `/sprach-tools:gendern [text]` | Texte so schreiben, dass sich alle angesprochen fühlen: neutral umformulieren, Doppelnennung, Sonderzeichen nur wenn der Empfänger es verlangt |
+
+Zehn Stimmen, ein Inhalt: `klar` (Grundton), `klartext` (der Arbeitston: modern, professionell, zugänglich), `kraftvolle-sprache`, `herzens-sprache`, `kindgerecht`, `tiefstapelei`, `groessenwahn`, `schamanisch`, `soziologen-sprech`, `marktschreier`. Jede Stimme hat eine eigene Referenz mit Haltung, Regeln, Wortschatz und Beispielen; in allen gelten echte Umlaute, keine Gedankenstriche, Fakten bleiben wahr. Gewachsen aus `rln-alle-sprachformen.md`, dem Sprachexperiment von Timo und Anton; erste Anwendung ist die Landingpage `wir.ooo`, auf der Leser Sprache und Sprachstil selbst wählen.
 
 ## Hinweis zur Versionierung
 
