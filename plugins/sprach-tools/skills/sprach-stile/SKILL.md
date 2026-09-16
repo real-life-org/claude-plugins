@@ -19,7 +19,7 @@ Ein Inhalt, viele Stimmen. Dieser Skill sammelt die Sprachformen des Real Life N
 | Stil-Id | Name | Klang | Vorbilder | Wann |
 |---------|------|-------|-----------|------|
 | `klar` | Klar | alltagstauglich, warm, leicht | Kant, Goethe, Schiller im Kern, Arne im Ton | Standard für alles, was aus dem Real Life Network in die Welt geht |
-| `klartext` | Klartext | modern, professionell, zugänglich | gute Produkttexte, Wirtschaftsteil, ein Kollege am Telefon | Erklärungen, Landingpages, Produkttexte, Anleitungen, FAQ, Mails: alles, was jemand liest, um etwas zu verstehen oder zu tun |
+| `klartext` | Klartext | modern, professionell, zugänglich | Wolf Schneider, Barbara Minto, gute Produkttexte | Erklärungen, Landingpages, Produkttexte, Anleitungen, FAQ, Mails: alles, was jemand liest, um etwas zu verstehen oder zu tun |
 | `kraftvolle-sprache` | Kraftvolle Sprache | klar, pathosfähig, imperativisch, tragend | Schiller, Goethe, Kant, Schweitzer | Manifest-Stücke, Grundsatz-Passagen, Titel mit Gewicht |
 | `herzens-sprache` | Herzens-Sprache | weich, atmend, einladend | Eckhart, Hildegard, Rumi, Rilke | Friedenstexte, Meditation, Willkommen, Einladung |
 | `kindgerecht` | Kindgerecht | warm, staunend, einfach | Sendung mit der Maus, logo!, Löwenzahn | Erklärungen für Kinder, einfache Sprache, Onboarding |
@@ -28,6 +28,8 @@ Ein Inhalt, viele Stimmen. Dieser Skill sammelt die Sprachformen des Real Life N
 | `schamanisch` | Schamanisch | zeremoniell, zyklisch, animistisch | Lakota, Hopi, Black Elk, Häuptling Seattle | Zeremonie, Ritual, Texte am Feuer |
 | `soziologen-sprech` | Soziologen-Sprech | theoriegesättigt, hypotaktisch, augenzwinkernd ernst | Habermas, Luhmann, Bourdieu | akademische Analyse, Zerrspiegel für Förderanträge |
 | `marktschreier` | Marktschreier | laut, theatralisch, direkt, herzlich | Hamburger Fischmarkt, Aale-Dieter | Werbetext, Aufmerksamkeit, Jahrmarkt |
+
+Zu `klartext` gehört eine zweite Ebene: [reference/klartext-werkstatt.md](reference/klartext-werkstatt.md) mit den Lehrern, dem Prüfraster nach dem Hamburger Verständlichkeitsmodell, den Tiefen-Regeln, Leserprofilen und Textsorten. Sie wird gelesen, wenn ein Text länger als eine Seite ist oder nicht sitzt.
 
 **Im Zweifel zwischen `klar` und `klartext`:** Geht es um das **Warum** (Haltung, Manifest, Einladung), nimm `klar`. Geht es um **Was und Wie** (Erklärung, Produkt, Anleitung), nimm `klartext`.
 

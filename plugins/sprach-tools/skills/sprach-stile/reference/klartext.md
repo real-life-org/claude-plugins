@@ -100,6 +100,15 @@ Ein Satz, ein Knopf, ein Weg. Kein Text endet mit einer Stimmung.
 - Kein Gendern, keine Emoji. Soll ein Text alle ansprechen, greift der Skill `/gendern` zusätzlich.
 - Form bleibt Form: HTML-Tags, Platzhalter, Pfeile und Struktur stehen nach dem Umschreiben an derselben Stelle.
 
+## Wenn ein Text nicht sitzt
+
+Für einen Absatz reichen die zwölf Regeln. Wird ein Text länger als eine Seite oder hakt er, ohne dass man sagen kann warum, dann geht es weiter in der **[Werkstatt](klartext-werkstatt.md)**:
+
+- **Die Lehrer.** Wolf Schneider für den Satz, Barbara Minto für den Aufbau, Gigerenzer für Zahlen, Zinsser fürs Streichen.
+- **Das Prüfraster** nach dem Hamburger Verständlichkeitsmodell: Einfachheit, Gliederung, Kürze, Anregung.
+- **Die fünf Tiefen-Regeln**, aus echten Korrekturen: Mechanismus statt Kategorie, keine Kategorie doppelt, Lücken benennen statt füllen, die eine Zahl, beide Seiten einer Sache.
+- **Leser und Textsorten**, dazu eine Sammlung von Förderdeutsch mit seiner Klartext-Fassung.
+
 ## Unterschied zu `klar`
 
 `klar` ist der Grundton des Real Life Network: Klassik im Kern, warm, bejahend. Für Manifeste, Grundsatztexte, Einladungen, alles mit Haltung.
