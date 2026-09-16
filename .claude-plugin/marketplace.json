@@ -19,6 +19,11 @@
       "name": "rls-tools",
       "source": "./plugins/rls-tools",
       "description": "Eigene Module und Linsen für den Real Life Stack bauen — Datenmodell, Oberfläche, Test, PR"
+    },
+    {
+      "name": "sprach-tools",
+      "source": "./plugins/sprach-tools",
+      "description": "Sprach-Stimmen: klar, kraftvoll, herzens-sprache, kindgerecht, tiefstapelei, groessenwahn, schamanisch, soziologen-sprech, marktschreier"
     }
   ]
 }
