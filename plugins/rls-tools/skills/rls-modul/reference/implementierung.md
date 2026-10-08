@@ -66,4 +66,4 @@ Ohne die `&&`-Kette laufen alle Befehle unabhängig davon durch, ob der vorherig
 
 Beim Nacharbeiten reicht der jeweils betroffene Teil (`test` allein), aber vor dem Vorlegen läuft die ganze Kette.
 
-Fallstrick: Die Vite-Apps lösen `@real-life-stack/toolkit` auf **src** auf, Node und Vitest auf **dist**. Grüner Dev-Server bei roten Tests heißt meistens: `dist` ist stale → `build:toolkit`.
+Fallstrick: Die Vite-Apps lösen `@real-life/toolkit` auf **src** auf, Node und Vitest auf **dist**. Grüner Dev-Server bei roten Tests heißt meistens: `dist` ist stale → `build:toolkit`.
