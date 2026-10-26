@@ -40,3 +40,7 @@ claude plugin install rls-tools@real-life-tools
 ### Automatischer Kontext
 
 Claude berücksichtigt angenommene RFC-Entscheidungen automatisch bei Architektur-, Prozess- und Organisationsfragen — ohne dass man einen Skill manuell aufrufen muss.
+
+## Lizenz
+
+[MIT](LICENSE)
